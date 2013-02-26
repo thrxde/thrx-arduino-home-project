@@ -26,4 +26,16 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 		<nature>it.baeyens.arduinonature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>Ethernet</name>
+			<type>2</type>
+			<locationURI>ArduinoLibPath/Ethernet</locationURI>
+		</link>
+		<link>
+			<name>SPI</name>
+			<type>2</type>
+			<locationURI>ArduinoLibPath/SPI</locationURI>
+		</link>
+	</linkedResources>
 </projectDescription>

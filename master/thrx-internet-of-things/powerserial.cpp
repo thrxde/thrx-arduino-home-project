@@ -3,19 +3,30 @@
 PowerSerial PowerSerial::power;
 PowerSerial PowerSerial::solar;
 
-const char *PowerSerial::PATTERN = "1-0:n.8.0*255(";
+const String PowerSerial::PATTERN_BEZUG_KEY  = "1-0:1.8.0*255"; //Bezugsregister kWh
+const String PowerSerial::PATTERN_LIEFER_KEY = "1-0:2.8.0*255"; //Lieferregister kWh
+const String PowerSerial::EXTERN_BEZUG_KEY   = "SWU-Zaehlerstand-Bezug";
+const String PowerSerial::EXTERN_LIEFER_KEY  = "SWU-Zaehlerstand-Liefer";
+
+const String PowerSerial::PATTERN_MOMENTAN_L1    = "1-0:21.7.255*255"; //Momentanleistung-L1 W
+const String PowerSerial::PATTERN_MOMENTAN_L2    = "1-0:41.7.255*255"; //Momentanleistung-L2 W
+const String PowerSerial::PATTERN_MOMENTAN_L3    = "1-0:61.7.255*255"; //Momentanleistung-L3 W
+const String PowerSerial::PATTERN_MOMENTAN_L1_3  = "1-0:1.7.255*255"; //Momentanleistung- L1 - L3 W
+
+const String PowerSerial::EXTERN_MOMENTAN_L1     = "SWU-Momentan-L1"; //Momentanleistung-L1 W
+const String PowerSerial::EXTERN_MOMENTAN_L2     = "SWU-Momentan-L2"; //Momentanleistung-L2 W
+const String PowerSerial::EXTERN_MOMENTAN_L3     = "SWU-Momentan-L3"; //Momentanleistung-L3 W
+const String PowerSerial::EXTERN_MOMENTAN_L1_3   = "SWU-Momentan-L1-L2-L3"; //Momentanleistung- L1 - L3 W
+
 
 void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	unsigned long _maxage) {
 	name = _name;
 	serial = &_serial;
 	maxage = _maxage;
 	serial->begin(9600, SERIAL_7E1);
-	pp = PATTERN;
 	count = 0;
-	kwh[0] = kwh[1] = 0;
 }
 
-//!kwh[0]: kwh[1]:
 ///ESY5Q3DA1024 V3.03
 //
 //1-0:0.0.0*255(112940679)
@@ -27,54 +38,76 @@ void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	unsigned lon
 //1-0:1.7.255*255(000247.37*W)
 //1-0:96.5.5*255(82)
 //0-0:96.1.255*255(1ESY1233002534)
-//!kwh[0]: kwh[1]:
 
 void PowerSerial::parseMe() {
-	unsigned long newms = millis();
-	if (maxage && (kwh[0] || kwh[1]) && newms > ms + maxage) {
-		kwh[0] = kwh[1] = 0;
+	if (count < 0){
+		Serial.println("Waiting ...");
+		return;
 	}
-	int c;
-	if ((c = serial->read()) > 0) {
-		Serial.print("<");
-		Serial.print(*pp);
-		Serial.print("-->");
-		Serial.print("[");
-		Serial.print(char(c));
 
-		if (c == '/') {
-			//      light.readout();
-
-			kwhtemp[0] = kwhtemp[1] = 0;
-		} else if (c == '!') {
-			kwh[0] = kwhtemp[0];
-			kwh[1] = kwhtemp[1];
-			ms = newms;
-			count++;
-
-		} else if (*pp == '\0') {
-
-			if (c == ')') {
-				pp = PATTERN;
-			} else if (c >= '0' && c <= '9') {
-				kwhtemp[n] = kwhtemp[n] * 10 + (int(c) - int('0'));
-			} else if (c == '.') {
+	String line = serial->readStringUntil('\n');
+	if (line.endsWith("\r")){
+		line = line.substring(0,line.indexOf('\r'));
+	}
+	if (line.indexOf('/') >= 0){
+		jsonResult = "";
+		count = 0;
+	} else if (line.indexOf('!') >= 0){
+		jsonResult +="}";
+		Serial.println("jsonResult: "+jsonResult);
+		count = -1;
+	} else if (line.indexOf('(') > 0){
+		String key = line.substring(0, line.indexOf('('));
+		String value = "";
+			if (line.indexOf('*',line.indexOf('(')) > 0){
+				value = line.substring(line.indexOf('(')+1, line.lastIndexOf('*'));
 			} else {
-				kwhtemp[n] = 0;
-				pp = PATTERN;
+				value = line.substring(line.indexOf('(')+1, line.lastIndexOf(')'));
 			}
-		} else if (*pp == 'n' && c == '1') {
-			n = 0;
-			pp++;
-		} else if (*pp == 'n' && c == '2') {
-			n = 1;
-			pp++;
-		} else if (c == *pp) {
-			pp++;
+		if (key.startsWith("1-0:0.0.0*255")){
+			Serial.print("Ignoring: ["+key+"]");
+			Serial.println("Value: ["+value+"]");
+		} else if (key.startsWith(PATTERN_BEZUG_KEY)){
+			concatJSON(EXTERN_BEZUG_KEY,value);
+		} else if (key.startsWith(PATTERN_LIEFER_KEY)){
+			concatJSON(EXTERN_LIEFER_KEY,value);
+		} else if (key.startsWith(PATTERN_MOMENTAN_L1)){
+			concatJSON(EXTERN_MOMENTAN_L1,value);
+		} else if (key.startsWith(PATTERN_MOMENTAN_L2)){
+			concatJSON(EXTERN_MOMENTAN_L2,value);
+		} else if (key.startsWith(PATTERN_MOMENTAN_L3)){
+			concatJSON(EXTERN_MOMENTAN_L3,value);
+		} else if (key.startsWith(PATTERN_MOMENTAN_L1_3)){
+			concatJSON(EXTERN_MOMENTAN_L1_3,value);
 		} else {
-			pp = PATTERN;
+			Serial.print("NOT FOUND Key: ["+key+"]");
+			Serial.println("Value: ["+value+"]");
+			Serial.println("Line ->: ["+line+"]");
 		}
+	} else {
+		Serial.println("-->");
+		Serial.println("   Line:    "+line);
+		Serial.println("<--");
 	}
+
+}
+
+String PowerSerial::getJsonResult(){
+
+}
+
+void PowerSerial::concatJSON(String jsonKey, String jsonValue){
+	Serial.print("##   MATCH: "+jsonKey );
+	Serial.println(":"+jsonValue );
+
+	if (count++ > 0){
+		jsonResult.concat(",");
+	} else {
+		jsonResult.concat("{");
+	}
+	jsonResult.concat(jsonKey);
+	jsonResult.concat(":");
+	jsonResult.concat(jsonValue);
 
 }
 

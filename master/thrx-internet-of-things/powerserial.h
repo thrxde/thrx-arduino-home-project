@@ -10,22 +10,37 @@ class PowerSerial {
 
 	HardwareSerial *serial;
 
-	static const char *PATTERN;
+	static const String PATTERN_BEZUG_KEY;
+	static const String EXTERN_BEZUG_KEY;
+	static const String PATTERN_LIEFER_KEY;
+	static const String EXTERN_LIEFER_KEY;
+
+	static const String PATTERN_MOMENTAN_L1; //Momentanleistung-L1 W
+	static const String PATTERN_MOMENTAN_L2; //Momentanleistung-L2 W
+	static const String PATTERN_MOMENTAN_L3; //Momentanleistung-L3 W
+	static const String PATTERN_MOMENTAN_L1_3; //Momentanleistung- L1 - L3 W
+
+	static const String EXTERN_MOMENTAN_L1; //Momentanleistung-L1 W
+	static const String EXTERN_MOMENTAN_L2; //Momentanleistung-L2 W
+	static const String EXTERN_MOMENTAN_L3; //Momentanleistung-L3 W
+	static const String EXTERN_MOMENTAN_L1_3; //Momentanleistung- L1 - L3 W
+
+
 	const char *name;
-	const char *pp;
-	unsigned long kwhtemp[2];
-	unsigned long wh_phase_temp[3];
-	int n;
 	unsigned long ms;
 	unsigned long maxage;
+
 public:
 //  Wattlight light;
-	unsigned long kwh[2], count;
+	String jsonResult;
+	unsigned long count;
 	void begin(const char* _name, HardwareSerial& _serial,	unsigned long _maxage);
 	void parseMe();
+	void concatJSON(String jsonKey, String jsonValue);
 	static PowerSerial power, solar;
 	static void setup();
 	static void parse();
+	static String getJsonResult();
 };
 
 #define FROMNET PowerSerial::power.kwh[0]
