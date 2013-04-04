@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
-	<name>thrx-internet-of-things</name>
+	<name>thrx-home-project</name>
 	<comment></comment>
 	<projects>
 		<project>Arduino_Mega_2560_or_Mega_ADK</project>
