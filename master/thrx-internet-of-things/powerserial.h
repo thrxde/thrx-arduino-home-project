@@ -32,15 +32,16 @@ class PowerSerial {
 
 public:
 //  Wattlight light;
+	int count;
 	String jsonResult;
-	unsigned long count;
 	void begin(const char* _name, HardwareSerial& _serial,	unsigned long _maxage);
 	void parseMe();
-	void concatJSON(String jsonKey, String jsonValue);
+	void processLine(String line);
+	void concatJson(String jsonKey, String jsonValue);
 	static PowerSerial power, solar;
 	static void setup();
 	static void parse();
-	static String getJsonResult();
+	int getCount();
 };
 
 #define FROMNET PowerSerial::power.kwh[0]

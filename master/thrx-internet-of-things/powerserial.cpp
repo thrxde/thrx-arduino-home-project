@@ -25,36 +25,91 @@ void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	unsigned lon
 	maxage = _maxage;
 	serial->begin(9600, SERIAL_7E1);
 	count = 0;
+	Serial.println("PowerSerial::begin(): ");
 }
 
-///ESY5Q3DA1024 V3.03
+/// ESY5Q3DA1024 V3.03
 //
-//1-0:0.0.0*255(112940679)
-//1-0:1.8.0*255(00001013.0368091*kWh)
-//1-0:2.8.0*255(00000376.0128508*kWh)
-//1-0:21.7.255*255(000046.04*W)
-//1-0:41.7.255*255(000122.30*W)
-//1-0:61.7.255*255(000079.03*W)
-//1-0:1.7.255*255(000247.37*W)
-//1-0:96.5.5*255(82)
-//0-0:96.1.255*255(1ESY1233002534)
+// 1-0:0.0.0*255(112940679)
+// 1-0:1.8.0*255(00001013.0368091*kWh)
+// 1-0:2.8.0*255(00000376.0128508*kWh)
+// 1-0:21.7.255*255(000046.04*W)
+// 1-0:41.7.255*255(000122.30*W)
+// 1-0:61.7.255*255(000079.03*W)
+// 1-0:1.7.255*255(000247.37*W)
+// 1-0:96.5.5*255(82)
+// 0-0:96.1.255*255(1ESY1233002534)
+// !
+//
 
 void PowerSerial::parseMe() {
 	if (count < 0){
-		Serial.println("Waiting ...");
+		Serial.println("PowerSerial::parseMe():  Waiting ... ");
 		return;
+	} else {
+	   Serial.println("PowerSerial::parseMe():"+count);
 	}
 
-	String line = serial->readStringUntil('\n');
+	jsonResult = "";
+	String complete = "";
+	int append = 0;
+	int tryToRead = 1;
+	while(tryToRead == 1){
+		int c = serial->read();
+		char c2 = c;
+		if ( c > 0) {
+//			Serial.print(c2);
+
+			if (c=='/') { // start telegramm
+				append = 1;
+			}
+
+			if (append == 1) {
+				complete.concat(c2);
+				if (c=='!') {	// ende telegramm
+					append = 0;
+					tryToRead = 0;
+				}
+			}
+
+		}
+
+	}
+//	String complete = serial->readStringUntil('/');
+//	Serial.println("and GO ...");
+//	Serial.println(complete);
+	int lastCommaPosition = 0;
+	int commaPosition = 0;
+	do {
+		lastCommaPosition = commaPosition;
+		commaPosition = complete.indexOf('\n',commaPosition+1);
+		if (commaPosition != -1) {
+			processLine(complete.substring(lastCommaPosition+1, commaPosition+1));
+//			complete = complete.substring(commaPosition+1, complete.length());
+		} else { // here after the last comma is found
+			processLine(complete.substring(lastCommaPosition+1, complete.length()));
+			commaPosition = -1;
+		}
+	} while (commaPosition >= 0);
+
+}
+
+
+void PowerSerial::processLine(String line) {
+//	Serial.println(line);
+	if (line.endsWith("\n")){
+		line = line.substring(0,line.indexOf('\n'));
+	}
 	if (line.endsWith("\r")){
 		line = line.substring(0,line.indexOf('\r'));
 	}
 	if (line.indexOf('/') >= 0){
+		// hier läuft er nicht rein ...
 		jsonResult = "";
 		count = 0;
 	} else if (line.indexOf('!') >= 0){
 		jsonResult +="}";
-		Serial.println("jsonResult: "+jsonResult);
+//		Serial.println("jsonResult: "+jsonResult);
 		count = -1;
 	} else if (line.indexOf('(') > 0){
 		String key = line.substring(0, line.indexOf('('));
@@ -64,42 +119,33 @@ void PowerSerial::parseMe() {
 			} else {
 				value = line.substring(line.indexOf('(')+1, line.lastIndexOf(')'));
 			}
-		if (key.startsWith("1-0:0.0.0*255")){
-			Serial.print("Ignoring: ["+key+"]");
-			Serial.println("Value: ["+value+"]");
-		} else if (key.startsWith(PATTERN_BEZUG_KEY)){
-			concatJSON(EXTERN_BEZUG_KEY,value);
+		if (key.startsWith(PATTERN_BEZUG_KEY)){
+			concatJson(EXTERN_BEZUG_KEY,value);
 		} else if (key.startsWith(PATTERN_LIEFER_KEY)){
-			concatJSON(EXTERN_LIEFER_KEY,value);
+			concatJson(EXTERN_LIEFER_KEY,value);
 		} else if (key.startsWith(PATTERN_MOMENTAN_L1)){
-			concatJSON(EXTERN_MOMENTAN_L1,value);
+			concatJson(EXTERN_MOMENTAN_L1,value);
 		} else if (key.startsWith(PATTERN_MOMENTAN_L2)){
-			concatJSON(EXTERN_MOMENTAN_L2,value);
+			concatJson(EXTERN_MOMENTAN_L2,value);
 		} else if (key.startsWith(PATTERN_MOMENTAN_L3)){
-			concatJSON(EXTERN_MOMENTAN_L3,value);
+			concatJson(EXTERN_MOMENTAN_L3,value);
 		} else if (key.startsWith(PATTERN_MOMENTAN_L1_3)){
-			concatJSON(EXTERN_MOMENTAN_L1_3,value);
+			concatJson(EXTERN_MOMENTAN_L1_3,value);
+		} else if (key.startsWith("1-0:0.0.0*255")){
+//			Serial.println("3 NOT MAPPED:  "+line);
 		} else {
-			Serial.print("NOT FOUND Key: ["+key+"]");
-			Serial.println("Value: ["+value+"]");
-			Serial.println("Line ->: ["+line+"]");
+//			Serial.println("2 NOT MAPPED:  "+line);
 		}
 	} else {
-		Serial.println("-->");
-		Serial.println("   Line:    "+line);
-		Serial.println("<--");
+//		Serial.println("1 NOT MAPPED:  "+line);
 	}
 
 }
 
-String PowerSerial::getJsonResult(){
 
-}
-
-void PowerSerial::concatJSON(String jsonKey, String jsonValue){
-	Serial.print("##   MATCH: "+jsonKey );
-	Serial.println(":"+jsonValue );
-
+void PowerSerial::concatJson(String jsonKey, String jsonValue){
+//	Serial.print("##   MATCH:    "+jsonKey );
+//	Serial.println(":"+jsonValue );
 	if (count++ > 0){
 		jsonResult.concat(",");
 	} else {
@@ -111,31 +157,15 @@ void PowerSerial::concatJSON(String jsonKey, String jsonValue){
 
 }
 
-void interrupt0() {
-//  PowerSerial::power.light.interrupt();
-}
-
-void interrupt1() {
-//  PowerSerial::solar.light.interrupt();
-}
-
 void PowerSerial::setup() {
-	Serial.begin(9600);
-
+//	Serial.begin(9600);
 	while (!Serial) {
 		; // wait for serial port to connect. Needed for Leonardo only
 	}
-
-	Serial.println("Goodnight moon 1!");
-
-//  power.begin("Power",Serial1,4500,UCSR1C,UCSZ10,UPM11);
-//	solar.begin("Solar", Serial2, 4500, UCSR2C, UCSZ20, UPM21);
+	Serial.println("PowerSerial::setup()");
 	solar.begin("Solar", Serial2, 4500);
-//  attachInterrupt(0,interrupt0,RISING);
-//  attachInterrupt(1,interrupt1,RISING);
 }
 
 void PowerSerial::parse() {
-//  power.parseMe();
 	solar.parseMe();
 }
