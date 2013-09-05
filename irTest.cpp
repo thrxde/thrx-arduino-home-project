@@ -39,6 +39,7 @@ void setup() {
 	Serial.begin(9600);
 	delay(1000);
 	Serial.println("openenergymonitor.org thrx Project");
+	Serial.println("Version 0.9.1");
 	delay(1000);
 //	if (Ethernet.begin(mac) == 0) {
 //		delay(1000);
@@ -46,7 +47,6 @@ void setup() {
 //    	Ethernet.begin(mac, ip); //configure manually
 //	}
    	Ethernet.begin(mac, ip); //configure manually
-
 
 	delay(1000);
 	Serial.print("Local IP address: ");
@@ -67,8 +67,6 @@ void setup() {
 // The loop function is called in an endless loop
 void loop() {
 
-
-
 	// if there's incoming data from the net connection.
 	// send it out the serial port. This is for debugging
 	// purposes only:
@@ -88,9 +86,9 @@ void loop() {
 
 	if (PowerSerial::solar.count < 0) {
 		int waitTime = millis() - lastupdate;
-		if (waitTime > 30000) {
+		if (waitTime > 15000) {
 			String jsonResult = PowerSerial::solar.jsonResult;
-			Serial.println("transmit Every 30 seconds");
+			Serial.println("transmit Every 15 seconds");
 			lastupdate = millis();
 
 			lmillis = tmillis; //timing to determine amount of time since last call

@@ -1,7 +1,7 @@
 #include "powerserial.h"
 
 
-PowerSerial PowerSerial::power;
+//PowerSerial PowerSerial::power;
 PowerSerial PowerSerial::solar;
 
 const String PowerSerial::PATTERN_BEZUG_KEY  = "1-0:1.8.0*255"; //Bezugsregister kWh
