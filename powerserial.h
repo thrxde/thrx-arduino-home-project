@@ -3,8 +3,8 @@
 #else
 #include "WProgram.h"
 #endif
-
 // #include "wattlight.h"
+#include "HardwareSerial.h"
 
 class PowerSerial {
 
@@ -29,6 +29,7 @@ class PowerSerial {
 	const char *name;
 	unsigned long ms;
 	unsigned long maxage;
+
 
 public:
 //  Wattlight light;

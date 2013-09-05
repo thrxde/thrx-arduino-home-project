@@ -1,5 +1,6 @@
 #include "powerserial.h"
 
+
 PowerSerial PowerSerial::power;
 PowerSerial PowerSerial::solar;
 

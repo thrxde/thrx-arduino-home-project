@@ -18,11 +18,11 @@ char serverName[] = "emoncms.org";
 char input[] = "/input/post?node=1";
 
 char inputJson[] = "&json=";
-char apikey[] = "&apikey=YOURAPIKEY";
+char apikey[] = "&apikey=1e5510f5fd5f6b50ad7c1e733b240481";
 
 int wasConnected;
 
-//http://emoncms.org/input/post?node=2&json={test_bezug_zaehlerstand:0}&apikey=YOURAPIKEY
+//http://emoncms.org/input/post?node=2&json={test_bezug_zaehlerstand:0}&apikey=1e5510f5fd5f6b50ad7c1e733b240481
 
 EthernetClient client;
 
