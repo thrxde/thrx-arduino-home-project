@@ -1,6 +1,6 @@
 // Do not remove the include below
 #include "irTest.h"
-#include <SPI.h>
+//#include <SPI.h>
 #include <Ethernet.h>
 //#include <Dns.h>
 
