@@ -25,6 +25,8 @@ class PowerSerial {
 	static const String EXTERN_MOMENTAN_L3; //Momentanleistung-L3 W
 	static const String EXTERN_MOMENTAN_L1_3; //Momentanleistung- L1 - L3 W
 
+	String fieldNames[];
+	String fieldValues[];
 
 	const char *name;
 	unsigned long ms;
@@ -38,10 +40,11 @@ public:
 	void begin(const char* _name, HardwareSerial& _serial,	unsigned long _maxage);
 	void parseMe();
 	void processLine(String line);
-	void concatJson(String jsonKey, String jsonValue);
+	void concatJson(int index, String key, String value);
+	void addToArrays(int index, String key, String value);
 	static PowerSerial power, solar;
 	static void setup();
-	static void parse();
+	//static void parse();
 	int getCount();
 };
 
