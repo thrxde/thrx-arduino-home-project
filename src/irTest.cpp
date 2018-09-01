@@ -47,8 +47,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
 	Serial.println("Length: " + String(length,DEC));
 	
 	// Kopieren der Nachricht und erstellen eines Bytes mit abschließender \0
-	for(i=0; i<length; i++) {
-	message_buff[i] = payload[i];
+	for(unsigned int i = 0; i < length; i++) {
+		message_buff[i] = payload[i];
 	}
 	message_buff[i] = '\0';
 	
@@ -68,11 +68,7 @@ void setup() {
 	Serial.println("home thrx project - mqtt");
 	Serial.println("Version 1.0.0");
 	delay(1000);
-//	if (Ethernet.begin(mac) == 0) {
-//		delay(1000);
-//		Serial.println("Failed to configure Ethernet using DHCP");
-//    	Ethernet.begin(mac, ip); //configure manually
-//	}
+
    	Ethernet.begin(mac, ip); //configure manually
 
 	delay(1000);
@@ -88,7 +84,6 @@ void setup() {
 	Serial.println();
 
   	connectMqttServer();
-
 
 	PowerSerial::setup();
 }
@@ -141,67 +136,31 @@ void loop() {
 			tmillis = millis();
 
 			delay(1000);
-			if (!ethClient.connected()) {
-				Serial.println(jsonResult);
-				// if there's a successful connection:
-				Serial.println("!ethClient.connected() --> 1");
+			Serial.println(jsonResult);
 
-//				DNSClient dns;
-//				IPAddress remote_addr;
-//				dns.begin(Ethernet.dnsServerIP());
-//				int ret = dns.getHostByName(serverName, remote_addr);
-//				  if (ret == 1) {
-//				    Serial.println(serverName);
-//				    Serial.println(remote_addr);
-//					    Serial.println("Fail !!!");
-//				  }
-
-
-				if (ethClient.connect(serverName, 80)) {
-					delay(1000);
-					Serial.println("!ethClient.connect() --> 2");
-					wasConnected = true;
-					Serial.println("connecting...");
-					// send the HTTP PUT request:
-					String str = "GET ";
-						str.concat(input);
-    					str.concat(apikey);
-						str.concat(inputJson);
-						str.concat(jsonResult);
-						str.concat(" HTTP/1.0");
-
-					ethClient.println(str);
-					ethClient.println("Host: emoncms.org");
-					ethClient.println("User-Agent: arduino-ethernet");
-					ethClient.println("Connection: close");
-					ethClient.println();
-					ethClient.flush();
-					Serial.println(str);
-					Serial.println("Respons:");
-					Serial.println(ethClient.readString());
-					PowerSerial::solar.count = 0;
-				} else {
-					delay(1000);
-					// if you couldn't make a connection:
-					Serial.println("connection failed");
-					Serial.println();
-					Serial.println("disconnecting.");
-					ethClient.stop();
-				}
-
+			for(unsigned int i = 0; i < sizeof(PowerSerial::solar.fieldNames); i++) {
+				//	fieldNames[index]=key;
+				//	fieldValues[index]=value;
+               mqttClient.publish(
+				   String(PowerSerial::solar.mqttPrefix+PowerSerial::solar.fieldNames[i]).c_str(),
+				   PowerSerial::solar.fieldValues[i].c_str());
 			}
+
+			// Publizierung des Wertes. Vorher Converierung vn float zu String.
+
+			wasConnected = true;
+			PowerSerial::solar.count = 0;
+
 		} else {
-//			Serial.print("Still waiting: ");
-//			Serial.println(waitTime);
+			Serial.print("Still waiting: ");
+			Serial.println(waitTime);
 		}
 	} else {
 		Serial.println("Powerserial has no result .... waiting: ");
 	}
 
 	if (PowerSerial::solar.count >= 0){
-		PowerSerial::solar.parse();
+		PowerSerial::solar.parseMe();
 	}
-
-//				  } else {
 }
 

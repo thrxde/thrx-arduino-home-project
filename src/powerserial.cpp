@@ -7,20 +7,25 @@ PowerSerial PowerSerial::solar;
 const String PowerSerial::PATTERN_BEZUG_KEY  = "1-0:1.8.0*255"; //Bezugsregister kWh
 const String PowerSerial::PATTERN_LIEFER_KEY = "1-0:2.8.0*255"; //Lieferregister kWh
 
-const String PowerSerial::EXTERN_BEZUG_KEY   = "Zaehlerstand/Bezug";
-const String PowerSerial::EXTERN_LIEFER_KEY  = "Zaehlerstand/Liefer";
-
 const String PowerSerial::PATTERN_MOMENTAN_L1    = "1-0:21.7.255*255"; //Momentanleistung-L1 W
 const String PowerSerial::PATTERN_MOMENTAN_L2    = "1-0:41.7.255*255"; //Momentanleistung-L2 W
 const String PowerSerial::PATTERN_MOMENTAN_L3    = "1-0:61.7.255*255"; //Momentanleistung-L3 W
 const String PowerSerial::PATTERN_MOMENTAN_L1_3  = "1-0:1.7.255*255"; //Momentanleistung- L1 - L3 W
 
-const String PowerSerial::EXTERN_MOMENTAN_L1     = "Momentan/L1"; //Momentanleistung-L1 W
-const String PowerSerial::EXTERN_MOMENTAN_L2     = "Momentan/L2"; //Momentanleistung-L2 W
-const String PowerSerial::EXTERN_MOMENTAN_L3     = "Momentan/L3"; //Momentanleistung-L3 W
-const String PowerSerial::EXTERN_MOMENTAN_L1_3   = "Momentan/L1-L2-L3"; //Momentanleistung- L1 - L3 W
+const String PowerSerial::EXTERN_BEZUG_KEY   = "zaehlerstand/bezug";
+const String PowerSerial::EXTERN_LIEFER_KEY  = "zaehlerstand/lieferung";
 
+const String PowerSerial::EXTERN_MOMENTAN_L1     = "momentanleistung/phase/1"; //Momentanleistung-L1 W
+const String PowerSerial::EXTERN_MOMENTAN_L2     = "momentanleistung/phase/2"; //Momentanleistung-L2 W
+const String PowerSerial::EXTERN_MOMENTAN_L3     = "momentanleistung/phase/3"; //Momentanleistung-L3 W
+const String PowerSerial::EXTERN_MOMENTAN_L1_3   = "momentanleistung/phasen"; //Momentanleistung- L1 - L3 W
 
+// swu/stromzaehler/zaehlerstand/bezug
+// swu/stromzaehler/zaehlerstand/lieferung
+// swu/stromzaehler/momentanleistung/phase/1
+// swu/stromzaehler/momentanleistung/phase/2
+// swu/stromzaehler/momentanleistung/phase/3
+// swu/stromzaehler/momentanleistung/phasen
 
 void PowerSerial::setup() {
 //	Serial.begin(9600);
@@ -28,15 +33,16 @@ void PowerSerial::setup() {
 		; // wait for serial port to connect. Needed for Leonardo only
 	}
 	Serial.println("PowerSerial::setup()");
-	solar.begin("Solar", Serial2, 4500);
+	solar.begin("Solar", Serial2, 4500,"swu/stromzaehler/");
 }
 
-void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	unsigned long _maxage) {
+void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	unsigned long _maxage, String _mqttPrefix) {
 	name = _name;
 	serial = &_serial;
 	maxage = _maxage;
 	serial->begin(9600, SERIAL_7E1);
 	count = 0;
+	mqttPrefix=_mqttPrefix;
 	Serial.println("PowerSerial::begin(): ");
 }
 

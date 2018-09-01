@@ -25,9 +25,7 @@ class PowerSerial {
 	static const String EXTERN_MOMENTAN_L3; //Momentanleistung-L3 W
 	static const String EXTERN_MOMENTAN_L1_3; //Momentanleistung- L1 - L3 W
 
-	String fieldNames[];
-	String fieldValues[];
-
+ 
 	const char *name;
 	unsigned long ms;
 	unsigned long maxage;
@@ -36,8 +34,11 @@ class PowerSerial {
 public:
 //  Wattlight light;
 	int count;
+    String PowerSerial::mqttPrefix;
 	String jsonResult;
-	void begin(const char* _name, HardwareSerial& _serial,	unsigned long _maxage);
+	String fieldNames[];
+	String fieldValues[];
+	void begin(const char* _name, HardwareSerial& _serial,	unsigned long _maxage, String _mqttPrefix);
 	void parseMe();
 	void processLine(String line);
 	void concatJson(int index, String key, String value);
