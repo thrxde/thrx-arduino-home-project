@@ -98,6 +98,7 @@ void connectMqttServer() {
 // The loop function is called in an endless loop
 void loop() {
     Serial.println("loop start");
+	delay(1000);
 
 	//connectMqttServer();
 
@@ -111,7 +112,6 @@ void loop() {
 			lmillis = tmillis; //timing to determine amount of time since last call
 			tmillis = millis();
 
-			delay(1000);
 			Serial.println(jsonResult);
 
 			for(unsigned int i = 0; i < sizeof(PowerSerial::solar.fieldNames); i++) {

@@ -71,10 +71,10 @@ void PowerSerial::parseMe() {
 	   Serial.println(count);
 	}
 
-	for( int i = 0; i < sizeof(fieldNames);  ++i ){
+	for(unsigned int i = 0; i < sizeof(fieldNames);  ++i ){
 		fieldNames[i]="";
 	}
-	for( int i = 0; i < sizeof(fieldValues);  ++i ){
+	for(unsigned int i = 0; i < sizeof(fieldValues);  ++i ){
 		fieldValues[i]="";
 	}
 	jsonResult = "";
@@ -121,7 +121,7 @@ void PowerSerial::parseMe() {
 
 void PowerSerial::processLine(String line) {
 	Serial.print("processLine: ");
-	Serial.println(line);
+	Serial.print(line);
 	if (line.endsWith("\n")){
 		line = line.substring(0,line.indexOf('\n'));
 	}
@@ -138,6 +138,8 @@ void PowerSerial::processLine(String line) {
 		count = -1;
 	} else if (line.indexOf('(') > 0){
 		String key = line.substring(0, line.indexOf('('));
+    	Serial.print("key: ");
+	    Serial.println(key);
 		String value = "";
 			if (line.indexOf('*',line.indexOf('(')) > 0){
 				value = line.substring(line.indexOf('(')+1, line.lastIndexOf('*'));
