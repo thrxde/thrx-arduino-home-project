@@ -90,9 +90,9 @@ void PowerSerial::parseMe() {
 			}
 		}
 	}
-	String complete = serial->readStringUntil('/');
+	//String complete = serial->readStringUntil('/');
 	Serial.println("and GO ...");
-	Serial.println(complete);
+	//Serial.println(complete);
 	int lastCommaPosition = 0;
 	int commaPosition = 0;
 	do {
