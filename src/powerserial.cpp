@@ -12,20 +12,20 @@ const String PowerSerial::PATTERN_MOMENTAN_L2    = "1-0:41.7.255*255"; //Momenta
 const String PowerSerial::PATTERN_MOMENTAN_L3    = "1-0:61.7.255*255"; //Momentanleistung-L3 W
 const String PowerSerial::PATTERN_MOMENTAN_L1_3  = "1-0:1.7.255*255"; //Momentanleistung- L1 - L3 W
 
-const String PowerSerial::EXTERN_BEZUG_KEY   = "zaehlerstand/bezug";
-const String PowerSerial::EXTERN_LIEFER_KEY  = "zaehlerstand/lieferung";
+const String PowerSerial::EXTERN_BEZUG_KEY   = "zaehler/strom/stand/bezug";
+const String PowerSerial::EXTERN_LIEFER_KEY  = "zaehler/strom/stand/lieferung";
 
-const String PowerSerial::EXTERN_MOMENTAN_L1     = "momentanleistung/phase/1"; //Momentanleistung-L1 W
-const String PowerSerial::EXTERN_MOMENTAN_L2     = "momentanleistung/phase/2"; //Momentanleistung-L2 W
-const String PowerSerial::EXTERN_MOMENTAN_L3     = "momentanleistung/phase/3"; //Momentanleistung-L3 W
-const String PowerSerial::EXTERN_MOMENTAN_L1_3   = "momentanleistung/phasen"; //Momentanleistung- L1 - L3 W
+const String PowerSerial::EXTERN_MOMENTAN_L1     = "zaehler/strom/leistung/phase/1"; //Momentanleistung-L1 W
+const String PowerSerial::EXTERN_MOMENTAN_L2     = "zaehler/strom/leistung/phase/2"; //Momentanleistung-L2 W
+const String PowerSerial::EXTERN_MOMENTAN_L3     = "zaehler/strom/leistung/phase/3"; //Momentanleistung-L3 W
+const String PowerSerial::EXTERN_MOMENTAN_L1_3   = "zaehler/strom/leistung/phasen"; //Momentanleistung- L1 - L3 W
 
-// swu/stromzaehler/zaehlerstand/bezug
-// swu/stromzaehler/zaehlerstand/lieferung
-// swu/stromzaehler/momentanleistung/phase/1
-// swu/stromzaehler/momentanleistung/phase/2
-// swu/stromzaehler/momentanleistung/phase/3
-// swu/stromzaehler/momentanleistung/phasen
+// swu/zaehler/strom/stand/bezug
+// swu/zaehler/strom/stand/lieferung
+// swu/zaehler/strom/leistung/phase/1
+// swu/zaehler/strom/leistung/phase/2
+// swu/zaehler/strom/leistung/phase/3
+// swu/zaehler/strom/leistung/phasen
 
 void PowerSerial::setup() {
 //	Serial.begin(9600);
@@ -33,20 +33,20 @@ void PowerSerial::setup() {
 		; // wait for serial port to connect. Needed for Leonardo only
 	}
 	Serial.println("PowerSerial::setup()");
-	solar.begin("Solar", Serial2, 4500,"swu/stromzaehler/");
+	solar.begin("Solar", Serial2, 4500,"swu/");
 }
 
-void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	unsigned long _maxage, String _mqttPrefix) {
+void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	unsigned long _maxage, const char *_mqttPrefix) {
 	name = _name;
 	serial = &_serial;
 	maxage = _maxage;
 	serial->begin(9600, SERIAL_7E1);
 	count = 0;
 	mqttPrefix=_mqttPrefix;
-	Serial.println("PowerSerial::begin(): ");
+	Serial.println("PowerSerial::begin(): count= "+count);
 }
 
-/// ESY5Q3DA1024 V3.03
+// /ESY5Q3DA1024 V3.03
 //
 // 1-0:0.0.0*255(112940679)
 // 1-0:1.8.0*255(00001013.0368091*kWh)
@@ -62,12 +62,20 @@ void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	unsigned lon
 
 void PowerSerial::parseMe() {
 	if (count < 0){
-		Serial.println("PowerSerial::parseMe():  Waiting ... count="+count);
+		Serial.print("PowerSerial::parseMe():  Waiting ... count=");
+   	    Serial.println(count);
 		return;
 	} else {
-	   Serial.println("PowerSerial::parseMe(): count="+count);
+	   Serial.print("PowerSerial::parseMe(): count=");
+	   Serial.println(count);
 	}
 
+	for( int i = 0; i < sizeof(fieldNames);  ++i ){
+		fieldNames[i]="";
+	}
+	for( int i = 0; i < sizeof(fieldValues);  ++i ){
+		fieldValues[i]="";
+	}
 	jsonResult = "";
 	String complete = "";
 	int append = 0;
@@ -91,8 +99,9 @@ void PowerSerial::parseMe() {
 		}
 	}
 	//String complete = serial->readStringUntil('/');
+	Serial.println();
 	Serial.println("and GO ...");
-	//Serial.println(complete);
+	Serial.println(complete);
 	int lastCommaPosition = 0;
 	int commaPosition = 0;
 	do {
@@ -110,7 +119,8 @@ void PowerSerial::parseMe() {
 
 
 void PowerSerial::processLine(String line) {
-//	Serial.println(line);
+	Serial.print("processLine: ");
+	Serial.println(line);
 	if (line.endsWith("\n")){
 		line = line.substring(0,line.indexOf('\n'));
 	}
@@ -118,12 +128,12 @@ void PowerSerial::processLine(String line) {
 		line = line.substring(0,line.indexOf('\r'));
 	}
 	if (line.indexOf('/') >= 0){
-		// hier laeuft er nicht rein ...
+		Serial.println("/ found -> start it");
 		jsonResult = "";
 		count = 0;
 	} else if (line.indexOf('!') >= 0){
+		Serial.println("! found -> set count to -1");
 		jsonResult +="}";
-//		Serial.println("jsonResult: "+jsonResult);
 		count = -1;
 	} else if (line.indexOf('(') > 0){
 		String key = line.substring(0, line.indexOf('('));

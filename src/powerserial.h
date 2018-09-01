@@ -34,11 +34,11 @@ class PowerSerial {
 public:
 //  Wattlight light;
 	int count;
-    String PowerSerial::mqttPrefix;
+    const char *mqttPrefix;
 	String jsonResult;
-	String fieldNames[];
-	String fieldValues[];
-	void begin(const char* _name, HardwareSerial& _serial,	unsigned long _maxage, String _mqttPrefix);
+	String fieldNames[10];
+	String fieldValues[10];
+	void begin(const char* _name, HardwareSerial& _serial, unsigned long _maxage, const char *_mqttPrefix);
 	void parseMe();
 	void processLine(String line);
 	void concatJson(int index, String key, String value);

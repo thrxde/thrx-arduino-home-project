@@ -11,22 +11,11 @@ byte gateway[] = { 192, 168, 1, 1 };                //Gateway ip
 byte mqttServer[] = { 192,168,1,3 };                 //Openhab / Mosquitto  ip
 char mqttUser[] = "openhabian";
 char mqttPass[] = "mqtt4openhab";
-char mqttClientName[] = "easymeterArduinoClient";
+char mqttClientName[]  = "arduinoZaehlerschrank";
+char topicConnect[]    = "arduino/1/status";
+char topicLastWill[]   = "arduino/1/status";
 
-//char apiurl[] = "http://emoncms.org/api/post.json?apikey=YOURAPIKEY&json=";
-//char timeurl[] = "http://emoncms.org/time/local.json?apikey=YOURAPIKEY";
-// For posting to emoncms server with host name, (DNS lookup) comment out if using static IP address below
-// emoncms.org is the public emoncms server. Emoncms can also be downloaded and run on any server.
-//char serverName[] = "emoncms.org";
-
-//char input[] = "/input/post?node=1";
-
-//char inputJson[] = "&json=";
-//char apikey[] = "&apikey=1e5510f5fd5f6b50ad7c1e733b240481";
-
-int wasConnected;
-
-//http://emoncms.org/input/post?node=2&json={test_bezug_zaehlerstand:0}&apikey=1e5510f5fd5f6b50ad7c1e733b240481
+//int wasConnected;
 
 EthernetClient ethClient;
 PubSubClient mqttClient(mqttServer, 1883, callback, ethClient);
@@ -83,7 +72,7 @@ void setup() {
 	Serial.println(Ethernet.gatewayIP());
 	Serial.println();
 
-  	connectMqttServer();
+  //	connectMqttServer();
 
 	PowerSerial::setup();
 }
@@ -96,11 +85,12 @@ void connectMqttServer() {
  	// Aufbau der Verbindung mit MQTT falls diese nicht offen ist.
 	if (!mqttClient.connected()) {
 	    Serial.println("MQTT not connected");
-		if (mqttClient.connect(mqttClientName, mqttUser, mqttPass)) {
-			mqttClient.publish("/openHAB/connect",mqttClientName);
+		// connect (clientID, username, password, willTopic, willQoS, willRetain, willMessage)
+		if (mqttClient.connect(mqttClientName, mqttUser, mqttPass,topicLastWill,1,false,"offline")) {
+			mqttClient.publish(topicConnect ,"online");
         	// Abonieren von Nachrichten mit dem angegebenen Topic
-			mqttClient.subscribe("/openHAB/broadcast");
-    	    Serial.println("MQTT subscribed to /openHAB/broadcast");
+			mqttClient.subscribe("openHAB/broadcast");
+    	    Serial.println("MQTT subscribed to openHAB/broadcast");
 		}
 	}
 }
@@ -108,24 +98,8 @@ void connectMqttServer() {
 // The loop function is called in an endless loop
 void loop() {
     Serial.println("loop start");
+
 	connectMqttServer();
-
-	// if there's incoming data from the net connection.
-	// send it out the serial port. This is for debugging
-	// purposes only:
-	//if (ethClient.available()) {
-	//	char c = ethClient.read();
-	//	Serial.print(c);
-	//}
-
-	// if there's no net connection, but there was one last time
-	// through the loop, then stop the ethClient:
-	//if (!ethClient.connected() && wasConnected) {
-	//	Serial.println();
-	//	Serial.println("disconnecting.");
-	//	ethClient.stop();
-	//	wasConnected = false;
-	//}
 
 	if (PowerSerial::solar.count < 0) {
 		int waitTime = millis() - lastupdate;
@@ -145,12 +119,12 @@ void loop() {
 				//	fieldValues[index]=value;
                mqttClient.publish(
 				   String(PowerSerial::solar.mqttPrefix+PowerSerial::solar.fieldNames[i]).c_str(),
-				   PowerSerial::solar.fieldValues[i].c_str());
+				   PowerSerial::solar.fieldValues[i].c_str()
+				);
 			}
 
 			// Publizierung des Wertes. Vorher Converierung vn float zu String.
 
-			wasConnected = true;
 			PowerSerial::solar.count = 0;
 
 		} else {
