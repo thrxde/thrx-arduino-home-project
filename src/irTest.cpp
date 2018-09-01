@@ -19,10 +19,10 @@ char mqttClientName[] = "easymeterArduinoClient";
 // emoncms.org is the public emoncms server. Emoncms can also be downloaded and run on any server.
 //char serverName[] = "emoncms.org";
 
-char input[] = "/input/post?node=1";
+//char input[] = "/input/post?node=1";
 
-char inputJson[] = "&json=";
-char apikey[] = "&apikey=1e5510f5fd5f6b50ad7c1e733b240481";
+//char inputJson[] = "&json=";
+//char apikey[] = "&apikey=1e5510f5fd5f6b50ad7c1e733b240481";
 
 int wasConnected;
 
@@ -95,17 +95,19 @@ void connectMqttServer() {
     // PubSubClient.h
  	// Aufbau der Verbindung mit MQTT falls diese nicht offen ist.
 	if (!mqttClient.connected()) {
+	    Serial.println("MQTT not connected");
 		if (mqttClient.connect(mqttClientName, mqttUser, mqttPass)) {
 			mqttClient.publish("/openHAB/connect",mqttClientName);
         	// Abonieren von Nachrichten mit dem angegebenen Topic
 			mqttClient.subscribe("/openHAB/broadcast");
+    	    Serial.println("MQTT subscribed to /openHAB/broadcast");
 		}
 	}
 }
 
 // The loop function is called in an endless loop
 void loop() {
-
+    Serial.println("loop start");
 	connectMqttServer();
 
 	// if there's incoming data from the net connection.

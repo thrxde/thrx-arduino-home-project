@@ -76,7 +76,7 @@ void PowerSerial::parseMe() {
 		int c = serial->read();
 		char c2 = c;
 		if ( c > 0) {
-//			Serial.print(c2);
+			Serial.print(c2);
 			if (c=='/') { // start telegramm
 				append = 1;
 			}
@@ -90,9 +90,9 @@ void PowerSerial::parseMe() {
 			}
 		}
 	}
-//	String complete = serial->readStringUntil('/');
-//	Serial.println("and GO ...");
-//	Serial.println(complete);
+	String complete = serial->readStringUntil('/');
+	Serial.println("and GO ...");
+	Serial.println(complete);
 	int lastCommaPosition = 0;
 	int commaPosition = 0;
 	do {
@@ -152,13 +152,13 @@ void PowerSerial::processLine(String line) {
 			concatJson(count,EXTERN_MOMENTAN_L1_3,value);
 			addToArrays(count,EXTERN_MOMENTAN_L1_3,value);
 		} else if (key.startsWith("1-0:0.0.0*255")){
-//			Serial.println("3 NOT MAPPED:  "+line);
+			Serial.println("3 NOT MAPPED:  "+line);
 		} else {
-//			Serial.println("2 NOT MAPPED:  "+line);
+			Serial.println("2 NOT MAPPED:  "+line);
 		}
 		count++;
 	} else {
-//		Serial.println("1 NOT MAPPED:  "+line);
+		Serial.println("1 NOT MAPPED:  "+line);
 	}
 
 }
@@ -180,7 +180,3 @@ void PowerSerial::addToArrays(int index, String key, String value){
 	fieldNames[index]=key;
 	fieldValues[index]=value;
 }
-
-//void PowerSerial::parse() {
-//	solar.parseMe();
-//}
