@@ -99,7 +99,7 @@ void connectMqttServer() {
 void loop() {
     Serial.println("loop start");
 
-	connectMqttServer();
+	//connectMqttServer();
 
 	if (PowerSerial::solar.count < 0) {
 		int waitTime = millis() - lastupdate;
@@ -117,10 +117,18 @@ void loop() {
 			for(unsigned int i = 0; i < sizeof(PowerSerial::solar.fieldNames); i++) {
 				//	fieldNames[index]=key;
 				//	fieldValues[index]=value;
-               mqttClient.publish(
-				   String(PowerSerial::solar.mqttPrefix+PowerSerial::solar.fieldNames[i]).c_str(),
-				   PowerSerial::solar.fieldValues[i].c_str()
-				);
+				String topicCurrent=PowerSerial::solar.mqttPrefix+PowerSerial::solar.fieldNames[i];
+				String valueCurrent=PowerSerial::solar.fieldValues[i];
+    			Serial.print("mqtt:");
+				Serial.print(topicCurrent);
+				Serial.print("  ");
+				Serial.println(valueCurrent);
+				if (mqttClient.connected()) {
+               		mqttClient.publish(
+				   		topicCurrent.c_str(),
+				   		valueCurrent.c_str()
+					);
+				}
 			}
 
 			// Publizierung des Wertes. Vorher Converierung vn float zu String.

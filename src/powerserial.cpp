@@ -43,7 +43,8 @@ void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	unsigned lon
 	serial->begin(9600, SERIAL_7E1);
 	count = 0;
 	mqttPrefix=_mqttPrefix;
-	Serial.println("PowerSerial::begin(): count= "+count);
+	Serial.print("PowerSerial::begin(): count= ");
+    Serial.println(count);
 }
 
 // /ESY5Q3DA1024 V3.03

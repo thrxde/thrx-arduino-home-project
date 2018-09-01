@@ -32,7 +32,6 @@ class PowerSerial {
 
 
 public:
-//  Wattlight light;
 	int count;
     const char *mqttPrefix;
 	String jsonResult;
