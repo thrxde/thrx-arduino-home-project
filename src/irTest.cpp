@@ -23,7 +23,7 @@ PubSubClient mqttClient(mqttServer, 1883, callback, ethClient);
 
 #define port 80
 
-unsigned long tmillis, lmillis, lastupdate;
+unsigned long lastupdate;
 
 void callback(char* topic, byte* payload, unsigned int length) {
 	// handle message arrived
@@ -47,8 +47,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void setup() {
-	tmillis = 0;
-	lmillis = 0;
 	lastupdate = 0;
 
 	delay(1000);
@@ -106,13 +104,8 @@ void loop() {
 		int waitTime = millis() - lastupdate;
 		if (waitTime > 15000) {
 			String jsonResult = PowerSerial::solar.jsonResult;
-			Serial.println("transmit Every 15 seconds");
+			Serial.println("transmit Every 15 seconlmillisds");
 			lastupdate = millis();
-
-			lmillis = tmillis; //timing to determine amount of time since last call
-			tmillis = millis();
-
-			Serial.println(jsonResult);
 
 			for(unsigned int i = 0; i < sizeof(PowerSerial::solar.fieldNames); i++) {
 				//	fieldNames[index]=key;
@@ -130,11 +123,7 @@ void loop() {
 					);
 				}
 			}
-
-			// Publizierung des Wertes. Vorher Converierung vn float zu String.
-
 			PowerSerial::solar.count = 0;
-
 		} else {
 			Serial.print("Still waiting: ");
 			Serial.println(waitTime);
