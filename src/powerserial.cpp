@@ -4,22 +4,6 @@
 //PowerSerial PowerSerial::power;
 PowerSerial PowerSerial::solar;
 
-const String PowerSerial::PATTERN_BEZUG_KEY  = "1-0:1.8.0*255"; //Bezugsregister kWh
-const String PowerSerial::PATTERN_LIEFER_KEY = "1-0:2.8.0*255"; //Lieferregister kWh
-
-const String PowerSerial::PATTERN_MOMENTAN_L1    = "1-0:21.7.255*255"; //Momentanleistung-L1 W
-const String PowerSerial::PATTERN_MOMENTAN_L2    = "1-0:41.7.255*255"; //Momentanleistung-L2 W
-const String PowerSerial::PATTERN_MOMENTAN_L3    = "1-0:61.7.255*255"; //Momentanleistung-L3 W
-const String PowerSerial::PATTERN_MOMENTAN_L1_3  = "1-0:1.7.255*255"; //Momentanleistung- L1 - L3 W
-
-const String PowerSerial::EXTERN_BEZUG_KEY   = "zaehler/strom/stand/bezug";
-const String PowerSerial::EXTERN_LIEFER_KEY  = "zaehler/strom/stand/lieferung";
-
-const String PowerSerial::EXTERN_MOMENTAN_L1     = "zaehler/strom/leistung/phase/1"; //Momentanleistung-L1 W
-const String PowerSerial::EXTERN_MOMENTAN_L2     = "zaehler/strom/leistung/phase/2"; //Momentanleistung-L2 W
-const String PowerSerial::EXTERN_MOMENTAN_L3     = "zaehler/strom/leistung/phase/3"; //Momentanleistung-L3 W
-const String PowerSerial::EXTERN_MOMENTAN_L1_3   = "zaehler/strom/leistung/phasen"; //Momentanleistung- L1 - L3 W
-
 // swu/zaehler/strom/stand/bezug
 // swu/zaehler/strom/stand/lieferung
 // swu/zaehler/strom/leistung/phase/1
@@ -145,7 +129,7 @@ void PowerSerial::processLine(String line) {
 				value = line.substring(line.indexOf('(')+1, line.lastIndexOf('*'));
 			} else {
 				value = line.substring(line.indexOf('(')+1, line.lastIndexOf(')'));
-			}
+			}    
 		if (key.startsWith(PATTERN_BEZUG_KEY)){
 			concatJson(count,EXTERN_BEZUG_KEY,value);
 			addToArrays(count,EXTERN_BEZUG_KEY,value);
@@ -168,6 +152,7 @@ void PowerSerial::processLine(String line) {
 			Serial.println("3 NOT MAPPED:  "+line);
 		} else {
 			Serial.println("2 NOT MAPPED:  "+line);
+			Serial.println(PATTERN_BEZUG_KEY);
 		}
 		count++;
 	} else {

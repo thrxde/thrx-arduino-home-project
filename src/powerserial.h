@@ -10,20 +10,22 @@ class PowerSerial {
 
 	HardwareSerial *serial;
 
-	static const String PATTERN_BEZUG_KEY;
-	static const String EXTERN_BEZUG_KEY;
-	static const String PATTERN_LIEFER_KEY;
-	static const String EXTERN_LIEFER_KEY;
 
-	static const String PATTERN_MOMENTAN_L1; //Momentanleistung-L1 W
-	static const String PATTERN_MOMENTAN_L2; //Momentanleistung-L2 W
-	static const String PATTERN_MOMENTAN_L3; //Momentanleistung-L3 W
-	static const String PATTERN_MOMENTAN_L1_3; //Momentanleistung- L1 - L3 W
+	const String PATTERN_BEZUG_KEY  = "1-0:1.8.0*255"; //Bezugsregister kWh
+	const String PATTERN_LIEFER_KEY = "1-0:2.8.0*255"; //Lieferregister kWh
 
-	static const String EXTERN_MOMENTAN_L1; //Momentanleistung-L1 W
-	static const String EXTERN_MOMENTAN_L2; //Momentanleistung-L2 W
-	static const String EXTERN_MOMENTAN_L3; //Momentanleistung-L3 W
-	static const String EXTERN_MOMENTAN_L1_3; //Momentanleistung- L1 - L3 W
+	const String PATTERN_MOMENTAN_L1    = "1-0:21.7.255*255"; //Momentanleistung-L1 W
+	const String PATTERN_MOMENTAN_L2    = "1-0:41.7.255*255"; //Momentanleistung-L2 W
+	const String PATTERN_MOMENTAN_L3    = "1-0:61.7.255*255"; //Momentanleistung-L3 W
+	const String PATTERN_MOMENTAN_L1_3  = "1-0:1.7.255*255"; //Momentanleistung- L1 - L3 W
+
+	const String EXTERN_BEZUG_KEY   = "zaehler/strom/stand/bezug";
+	const String EXTERN_LIEFER_KEY  = "zaehler/strom/stand/lieferung";
+
+	const String EXTERN_MOMENTAN_L1     = "zaehler/strom/leistung/phase/1"; //Momentanleistung-L1 W
+	const String EXTERN_MOMENTAN_L2     = "zaehler/strom/leistung/phase/2"; //Momentanleistung-L2 W
+	const String EXTERN_MOMENTAN_L3     = "zaehler/strom/leistung/phase/3"; //Momentanleistung-L3 W
+	const String EXTERN_MOMENTAN_L1_3   = "zaehler/strom/leistung/phasen"; //Momentanleistung- L1 - L3 W
 
  
 	const char *name;
