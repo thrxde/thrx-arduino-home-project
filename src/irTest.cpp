@@ -5,13 +5,14 @@
 #include <PubSubClient.h>
 //#include <Dns.h>
 
+
 byte mac[] = { 0x54, 0x52, 0x58, 0x10, 0x00, 0x18 }; //Ethernet shield mac address
 byte ip[] = { 192, 168, 1, 8 };                     //Ethernet shield ip address
 byte gateway[] = { 192, 168, 1, 1 };                //Gateway ip
 byte mqttServer[] = { 192,168,1,3 };                 //Openhab / Mosquitto  ip
 char mqttUser[] = "openhabian";
 char mqttPass[] = "mqtt4openhab";
-char mqttClientName[]  = "arduinoZaehlerschrank";
+char mqttClientName[]  = "Arduino Zaehlerschrank";
 char topicConnect[]    = "arduino/1/status";
 char topicLastWill[]   = "arduino/1/status";
 
@@ -70,7 +71,7 @@ void setup() {
 	Serial.println(Ethernet.gatewayIP());
 	Serial.println();
 
-  //	connectMqttServer();
+  	connectMqttServer();
 
 	PowerSerial::setup();
 }
@@ -95,38 +96,58 @@ void connectMqttServer() {
 
 // The loop function is called in an endless loop
 void loop() {
-    Serial.println("loop start");
+    //Serial.println("loop start");
 	delay(1000);
 
-	//connectMqttServer();
+	connectMqttServer();
 
 	if (PowerSerial::solar.count < 0) {
 		int waitTime = millis() - lastupdate;
 		if (waitTime > 15000) {
-			String jsonResult = PowerSerial::solar.jsonResult;
 			Serial.println("transmit Every 15 seconlmillisds");
 			lastupdate = millis();
-
-			for(unsigned int i = 0; i < sizeof(PowerSerial::solar.fieldNames); i++) {
-				//	fieldNames[index]=key;
-				//	fieldValues[index]=value;
-				String topicCurrent=PowerSerial::solar.mqttPrefix+PowerSerial::solar.fieldNames[i];
-				String valueCurrent=PowerSerial::solar.fieldValues[i];
-    			Serial.print("mqtt:");
-				Serial.print(topicCurrent);
-				Serial.print("  ");
-				Serial.println(valueCurrent);
-				if (mqttClient.connected()) {
+			if (mqttClient.connected()) {
+    			Serial.println("Publish to MQTT");
+				if (PowerSerial::solar.var_bezug.length() > 0) {
+               		Serial.println(mqttClient.publish(
+				   		((String)PowerSerial::solar.mqttPrefix + (String)PowerSerial::solar.EXTERN_BEZUG_KEY).c_str(),
+				   		PowerSerial::solar.var_bezug.c_str()
+					));
+				}
+				if (PowerSerial::solar.var_liefer.length() > 0) {
                		mqttClient.publish(
-				   		topicCurrent.c_str(),
-				   		valueCurrent.c_str()
+				   		((String)PowerSerial::solar.mqttPrefix + (String)PowerSerial::solar.EXTERN_LIEFER_KEY).c_str(),
+				   		PowerSerial::solar.var_liefer.c_str()
 					);
 				}
-			}
+				if (PowerSerial::solar.var_momentan_L1.length() > 0) {
+               		mqttClient.publish(
+				   		((String)PowerSerial::solar.mqttPrefix + (String)PowerSerial::solar.EXTERN_MOMENTAN_L1).c_str(),
+				   		PowerSerial::solar.var_momentan_L1.c_str()
+					);
+				}
+				if (PowerSerial::solar.var_momentan_L2.length() > 0) {
+               		mqttClient.publish(
+				   		((String)PowerSerial::solar.mqttPrefix + (String)PowerSerial::solar.EXTERN_MOMENTAN_L2).c_str(),
+				   		PowerSerial::solar.var_momentan_L2.c_str()
+					);
+				}
+				if (PowerSerial::solar.var_momentan_L3.length() > 0) {
+               		mqttClient.publish(
+				   		((String)PowerSerial::solar.mqttPrefix + (String)PowerSerial::solar.EXTERN_MOMENTAN_L3).c_str(),
+				   		PowerSerial::solar.var_momentan_L3.c_str()
+					);
+				}
+				if (PowerSerial::solar.var_momentan_L1_3.length() > 0) {
+               		mqttClient.publish(
+				   		((String)PowerSerial::solar.mqttPrefix + (String)PowerSerial::solar.EXTERN_MOMENTAN_L1_3).c_str(),
+				   		PowerSerial::solar.var_momentan_L1_3.c_str()
+					);
+				}
+			}	
 			PowerSerial::solar.count = 0;
 		} else {
-			Serial.print("Still waiting: ");
-			Serial.println(waitTime);
+			Serial.print(".");
 		}
 	} else {
 		Serial.println("Powerserial has no result .... waiting: ");

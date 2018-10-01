@@ -27,8 +27,7 @@ void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	unsigned lon
 	serial->begin(9600, SERIAL_7E1);
 	count = 0;
 	mqttPrefix=_mqttPrefix;
-	Serial.print("PowerSerial::begin(): count= ");
-    Serial.println(count);
+	Serial.print("PowerSerial::begin()");
 }
 
 // /ESY5Q3DA1024 V3.03
@@ -55,13 +54,13 @@ void PowerSerial::parseMe() {
 	   Serial.println(count);
 	}
 
-	for(unsigned int i = 0; i < sizeof(fieldNames);  ++i ){
-		fieldNames[i]="";
-	}
-	for(unsigned int i = 0; i < sizeof(fieldValues);  ++i ){
-		fieldValues[i]="";
-	}
-	jsonResult = "";
+	var_bezug = "";
+	var_liefer = "";
+	var_momentan_L1 = "";
+	var_momentan_L2 = "";
+	var_momentan_L3 = "";
+	var_momentan_L1_3 = "";
+
 	String complete = "";
 	int append = 0;
 	int tryToRead = 1;
@@ -69,7 +68,6 @@ void PowerSerial::parseMe() {
 		int c = serial->read();
 		char c2 = c;
 		if ( c > 0) {
-			Serial.print(c2);
 			if (c=='/') { // start telegramm
 				append = 1;
 			}
@@ -83,7 +81,6 @@ void PowerSerial::parseMe() {
 			}
 		}
 	}
-	//String complete = serial->readStringUntil('/');
 	Serial.println();
 	Serial.println("and GO ...");
 	Serial.println(complete);
@@ -99,13 +96,13 @@ void PowerSerial::parseMe() {
 			commaPosition = -1;
 		}
 	} while (commaPosition >= 0);
-
+ 
 }
 
 
 void PowerSerial::processLine(String line) {
-	Serial.print("processLine: ");
-	Serial.print(line);
+//	Serial.print("processLine: ");
+//	Serial.print(line);
 	if (line.endsWith("\n")){
 		line = line.substring(0,line.indexOf('\n'));
 	}
@@ -113,17 +110,15 @@ void PowerSerial::processLine(String line) {
 		line = line.substring(0,line.indexOf('\r'));
 	}
 	if (line.indexOf('/') >= 0){
-		Serial.println("/ found -> start it");
-		jsonResult = "";
+//		Serial.println("/ found -> start it");
 		count = 0;
 	} else if (line.indexOf('!') >= 0){
-		Serial.println("! found -> set count to -1");
-		jsonResult +="}";
+//		Serial.println("! found -> set count to -1");
 		count = -1;
 	} else if (line.indexOf('(') > 0){
 		String key = line.substring(0, line.indexOf('('));
-    	Serial.print("key: ");
-	    Serial.println(key);
+//    	Serial.print("key: ");
+//	    Serial.println(key);
 		String value = "";
 			if (line.indexOf('*',line.indexOf('(')) > 0){
 				value = line.substring(line.indexOf('(')+1, line.lastIndexOf('*'));
@@ -131,50 +126,27 @@ void PowerSerial::processLine(String line) {
 				value = line.substring(line.indexOf('(')+1, line.lastIndexOf(')'));
 			}    
 		if (key.startsWith(PATTERN_BEZUG_KEY)){
-			concatJson(count,EXTERN_BEZUG_KEY,value);
-			addToArrays(count,EXTERN_BEZUG_KEY,value);
+			var_bezug = value;
 		} else if (key.startsWith(PATTERN_LIEFER_KEY)){
-			concatJson(count,EXTERN_LIEFER_KEY,value);
-			addToArrays(count,EXTERN_LIEFER_KEY,value);
+			var_liefer = value;
 		} else if (key.startsWith(PATTERN_MOMENTAN_L1)){
-			concatJson(count,EXTERN_MOMENTAN_L1,value);
-			addToArrays(count,EXTERN_MOMENTAN_L1,value);
+			var_momentan_L1 = value;
 		} else if (key.startsWith(PATTERN_MOMENTAN_L2)){
-			concatJson(count,EXTERN_MOMENTAN_L2,value);
-			addToArrays(count,EXTERN_MOMENTAN_L2,value);
+			var_momentan_L2=value;
 		} else if (key.startsWith(PATTERN_MOMENTAN_L3)){
-			concatJson(count,EXTERN_MOMENTAN_L3,value);
-			addToArrays(count,EXTERN_MOMENTAN_L3,value);
+			var_momentan_L3=value;
 		} else if (key.startsWith(PATTERN_MOMENTAN_L1_3)){
-			concatJson(count,EXTERN_MOMENTAN_L1_3,value);
-			addToArrays(count,EXTERN_MOMENTAN_L1_3,value);
+			var_momentan_L1_3=value;
 		} else if (key.startsWith("1-0:0.0.0*255")){
-			Serial.println("3 NOT MAPPED:  "+line);
+//			Serial.println("3 NOT MAPPED:  "+line);
 		} else {
-			Serial.println("2 NOT MAPPED:  "+line);
-			Serial.println(PATTERN_BEZUG_KEY);
+//			Serial.println("2 NOT MAPPED:  "+line);
 		}
 		count++;
 	} else {
-		Serial.println("1 NOT MAPPED:  "+line);
+		//Serial.println("1 NOT MAPPED:  "+line);
 	}
 
 }
 
-void PowerSerial::concatJson(int index, String jsonKey, String jsonValue){
-//	Serial.print("##   MATCH:    "+jsonKey );
-//	Serial.println(":"+jsonValue );
-	if (index > 0){
-		jsonResult.concat(",");
-	} else {
-		jsonResult.concat("{");
-	}
-	jsonResult.concat(jsonKey);
-	jsonResult.concat(":");
-	jsonResult.concat(jsonValue);
-}
 
-void PowerSerial::addToArrays(int index, String key, String value){
-	fieldNames[index]=key;
-	fieldValues[index]=value;
-}
