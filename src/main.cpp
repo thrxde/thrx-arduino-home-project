@@ -1,5 +1,5 @@
 // Do not remove the include below
-#include "irTest.h"
+#include "main.h"
 
 
 byte mac[] = { 0x54, 0x52, 0x58, 0x10, 0x00, 0x18 }; //Ethernet shield mac address
@@ -91,32 +91,26 @@ void connectMqttServer() {
 // The loop function is called in an endless loop
 void loop() {
     //Serial.println("loop start");
-	delay(1000);
+//	delay(5);
 
 	connectMqttServer();
-
 	if (PowerSerial::swu.getCount() >= 0){
     	PowerSerial::swu.parseMe();
+	}
+    if (PowerSerial::solar.getCount() >= 0){
+    	PowerSerial::solar.parseMe();
 	}
 
 	if (PowerSerial::swu.getCount() < 0) {
 		PowerSerial::swu.transmitDataToMqtt(mqttClient);
 	} else {
-		Serial.println("Powerserial has no result .... waiting: ");
+		Serial.println("SWU: Powerserial has no result .... waiting: ");
 	}
-
-/* 	
-    if (PowerSerial::solar.getCount() >= 0){
-    	PowerSerial::solar.parseMe();
-	}
-
 	if (PowerSerial::solar.getCount() < 0) {
 		PowerSerial::solar.transmitDataToMqtt(mqttClient);
 	} else {
-		Serial.println("Powerserial has no result .... waiting: ");
+		Serial.println("Solar: Powerserial has no result .... waiting: ");
 	}
-	
- */
 
 
 }

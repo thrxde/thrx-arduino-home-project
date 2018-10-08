@@ -18,7 +18,7 @@ void PowerSerial::setup(unsigned long _waitTime) {
 	}
 	Serial.println("PowerSerial::setup()");
 	swu.begin("SWU", Serial2, "swu", _waitTime);
-//	solar.begin("Solar", Serial3, "piko", _waitTime);
+	solar.begin("Solar", Serial3, "piko", _waitTime);
 }
 
 void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	const char *_mqttPrefix, unsigned long _waitTime) {
@@ -68,7 +68,7 @@ void PowerSerial::parseMe() {
 	String complete = "";
 	int append = 0;
 	int tryToRead = 1;
-	while(tryToRead == 1){
+	while(tryToRead > 0){
 		int c = serial->read();
 		char c2 = c;
 		if ( c > 0) {
@@ -82,6 +82,16 @@ void PowerSerial::parseMe() {
 					append = 0;
 					tryToRead = 0;
 				}
+			}
+		} else {
+			tryToRead++;
+			delay(10);
+			//Serial.print("x"); 
+			if (tryToRead >= 500){
+				Serial.print(name); 		
+		        Serial.print(":PowerSerial:: ERROR no data to read, retry count: ");
+	            Serial.println(tryToRead);
+				return;
 			}
 		}
 	}
@@ -106,8 +116,9 @@ void PowerSerial::parseMe() {
 
 void PowerSerial::transmitDataToMqtt(PubSubClient mqttClient) {
 	int currentWaitTime = millis() - lastupdate;
-	if (currentWaitTime < 5000) {
-		Serial.print(".");
+	if (currentWaitTime < 50) {
+		delay(100);
+		//Serial.print(".");
 	} else {
     	Serial.print(name);
 		Serial.println(":PowerSerial::transmit Every 5 seconds");
