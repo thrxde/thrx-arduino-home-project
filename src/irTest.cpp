@@ -1,9 +1,5 @@
 // Do not remove the include below
 #include "irTest.h"
-//#include <SPI.h>
-#include <Ethernet.h>
-#include <PubSubClient.h>
-//#include <Dns.h>
 
 
 byte mac[] = { 0x54, 0x52, 0x58, 0x10, 0x00, 0x18 }; //Ethernet shield mac address
@@ -15,6 +11,7 @@ char mqttPass[] = "mqtt4openhab";
 char mqttClientName[]  = "Arduino Zaehlerschrank";
 char topicConnect[]    = "arduino/1/status";
 char topicLastWill[]   = "arduino/1/status";
+unsigned long waitTime = 5000; // max mqtt transmit rate 5sec
 
 //int wasConnected;
 
@@ -22,9 +19,7 @@ EthernetClient ethClient;
 PubSubClient mqttClient(mqttServer, 1883, callback, ethClient);
 
 
-#define port 80
-
-unsigned long lastupdate;
+//#define port 80
 
 void callback(char* topic, byte* payload, unsigned int length) {
 	// handle message arrived
@@ -48,7 +43,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void setup() {
-	lastupdate = 0;
 
 	delay(1000);
 	Serial.begin(9600);
@@ -73,7 +67,7 @@ void setup() {
 
   	connectMqttServer();
 
-	PowerSerial::setup();
+	PowerSerial::setup(waitTime);
 }
 
 void connectMqttServer() {
@@ -101,60 +95,29 @@ void loop() {
 
 	connectMqttServer();
 
-	if (PowerSerial::solar.count < 0) {
-		int waitTime = millis() - lastupdate;
-		if (waitTime > 15000) {
-			Serial.println("transmit Every 15 seconlmillisds");
-			lastupdate = millis();
-			if (mqttClient.connected()) {
-    			Serial.println("Publish to MQTT");
-				if (PowerSerial::solar.var_bezug.length() > 0) {
-               		Serial.println(mqttClient.publish(
-				   		((String)PowerSerial::solar.mqttPrefix + (String)PowerSerial::solar.EXTERN_BEZUG_KEY).c_str(),
-				   		PowerSerial::solar.var_bezug.c_str()
-					));
-				}
-				if (PowerSerial::solar.var_liefer.length() > 0) {
-               		mqttClient.publish(
-				   		((String)PowerSerial::solar.mqttPrefix + (String)PowerSerial::solar.EXTERN_LIEFER_KEY).c_str(),
-				   		PowerSerial::solar.var_liefer.c_str()
-					);
-				}
-				if (PowerSerial::solar.var_momentan_L1.length() > 0) {
-               		mqttClient.publish(
-				   		((String)PowerSerial::solar.mqttPrefix + (String)PowerSerial::solar.EXTERN_MOMENTAN_L1).c_str(),
-				   		PowerSerial::solar.var_momentan_L1.c_str()
-					);
-				}
-				if (PowerSerial::solar.var_momentan_L2.length() > 0) {
-               		mqttClient.publish(
-				   		((String)PowerSerial::solar.mqttPrefix + (String)PowerSerial::solar.EXTERN_MOMENTAN_L2).c_str(),
-				   		PowerSerial::solar.var_momentan_L2.c_str()
-					);
-				}
-				if (PowerSerial::solar.var_momentan_L3.length() > 0) {
-               		mqttClient.publish(
-				   		((String)PowerSerial::solar.mqttPrefix + (String)PowerSerial::solar.EXTERN_MOMENTAN_L3).c_str(),
-				   		PowerSerial::solar.var_momentan_L3.c_str()
-					);
-				}
-				if (PowerSerial::solar.var_momentan_L1_3.length() > 0) {
-               		mqttClient.publish(
-				   		((String)PowerSerial::solar.mqttPrefix + (String)PowerSerial::solar.EXTERN_MOMENTAN_L1_3).c_str(),
-				   		PowerSerial::solar.var_momentan_L1_3.c_str()
-					);
-				}
-			}	
-			PowerSerial::solar.count = 0;
-		} else {
-			Serial.print(".");
-		}
+	if (PowerSerial::swu.getCount() >= 0){
+    	PowerSerial::swu.parseMe();
+	}
+
+	if (PowerSerial::swu.getCount() < 0) {
+		PowerSerial::swu.transmitDataToMqtt(mqttClient);
 	} else {
 		Serial.println("Powerserial has no result .... waiting: ");
 	}
 
-	if (PowerSerial::solar.count >= 0){
-		PowerSerial::solar.parseMe();
+/* 	
+    if (PowerSerial::solar.getCount() >= 0){
+    	PowerSerial::solar.parseMe();
 	}
+
+	if (PowerSerial::solar.getCount() < 0) {
+		PowerSerial::solar.transmitDataToMqtt(mqttClient);
+	} else {
+		Serial.println("Powerserial has no result .... waiting: ");
+	}
+	
+ */
+
+
 }
 

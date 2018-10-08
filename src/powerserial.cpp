@@ -1,7 +1,7 @@
 #include "powerserial.h"
 
 
-//PowerSerial PowerSerial::power;
+PowerSerial PowerSerial::swu;
 PowerSerial PowerSerial::solar;
 
 // swu/zaehler/strom/stand/bezug
@@ -11,23 +11,25 @@ PowerSerial PowerSerial::solar;
 // swu/zaehler/strom/leistung/phase/3
 // swu/zaehler/strom/leistung/phasen
 
-void PowerSerial::setup() {
+void PowerSerial::setup(unsigned long _waitTime) {
 //	Serial.begin(9600);
 	while (!Serial) {
 		; // wait for serial port to connect. Needed for Leonardo only
 	}
 	Serial.println("PowerSerial::setup()");
-	solar.begin("Solar", Serial2, 4500,"swu/");
+	swu.begin("SWU", Serial2, "swu", _waitTime);
+//	solar.begin("Solar", Serial3, "piko", _waitTime);
 }
 
-void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	unsigned long _maxage, const char *_mqttPrefix) {
+void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	const char *_mqttPrefix, unsigned long _waitTime) {
 	name = _name;
 	serial = &_serial;
-	maxage = _maxage;
 	serial->begin(9600, SERIAL_7E1);
 	count = 0;
 	mqttPrefix=_mqttPrefix;
-	Serial.print("PowerSerial::begin()");
+	waitTime=_waitTime;
+	lastupdate = 0;
+	Serial.print("PowerSerial::begin():");
 }
 
 // /ESY5Q3DA1024 V3.03
@@ -46,12 +48,14 @@ void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	unsigned lon
 
 void PowerSerial::parseMe() {
 	if (count < 0){
-		Serial.print("PowerSerial::parseMe():  Waiting ... count=");
+		Serial.print(name);
+		Serial.print(":PowerSerial::parseMe():  Waiting ... count=");
    	    Serial.println(count);
 		return;
 	} else {
-	   Serial.print("PowerSerial::parseMe(): count=");
-	   Serial.println(count);
+		Serial.print(name); 		
+		Serial.print(":PowerSerial::parseMe(): count=");
+	    Serial.println(count);
 	}
 
 	var_bezug = "";
@@ -82,7 +86,8 @@ void PowerSerial::parseMe() {
 		}
 	}
 	Serial.println();
-	Serial.println("and GO ...");
+	Serial.print(name);
+	Serial.println(":PowerSerialand GO ...");
 	Serial.println(complete);
 	int lastCommaPosition = 0;
 	int commaPosition = 0;
@@ -98,6 +103,65 @@ void PowerSerial::parseMe() {
 	} while (commaPosition >= 0);
  
 }
+
+void PowerSerial::transmitDataToMqtt(PubSubClient mqttClient) {
+	int currentWaitTime = millis() - lastupdate;
+	if (currentWaitTime < 5000) {
+		Serial.print(".");
+	} else {
+    	Serial.print(name);
+		Serial.println(":PowerSerial::transmit Every 5 seconds");
+		lastupdate = millis();
+
+		if (mqttClient.connected()) {
+			Serial.print(name);
+		    Serial.println(":PowerSerial::Publish to MQTT");
+			if (var_bezug.length() > 0) {
+				Serial.println(mqttClient.publish(
+					((String)mqttPrefix + "/" + (String)EXTERN_BEZUG_KEY).c_str(),
+					var_bezug.c_str()
+				));
+			}
+			if (var_liefer.length() > 0) {
+				mqttClient.publish(
+					((String)mqttPrefix + "/" + (String)EXTERN_LIEFER_KEY).c_str(),
+					var_liefer.c_str()
+				);
+			}
+			if (var_momentan_L1.length() > 0) {
+				mqttClient.publish(
+					((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L1).c_str(),
+					var_momentan_L1.c_str()
+				);
+			}
+			if (var_momentan_L2.length() > 0) {
+				mqttClient.publish(
+					((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L2).c_str(),
+					var_momentan_L2.c_str()
+				);
+			}
+			if (var_momentan_L3.length() > 0) {
+				mqttClient.publish(
+					((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L3).c_str(),
+					var_momentan_L3.c_str()
+				);
+			}
+			if (var_momentan_L1_3.length() > 0) {
+				mqttClient.publish(
+					((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L1_3).c_str(),
+					var_momentan_L1_3.c_str()
+				);
+			}
+		} else {
+			Serial.print(name);
+		    Serial.print(":PowerSerial ");
+			Serial.println("ERROR: MQTT not connected .... waiting: ");
+		}	
+		count = 0;
+	}
+
+}
+
 
 
 void PowerSerial::processLine(String line) {
@@ -147,6 +211,10 @@ void PowerSerial::processLine(String line) {
 		//Serial.println("1 NOT MAPPED:  "+line);
 	}
 
+}
+
+int PowerSerial::getCount(){
+	return count;
 }
 
 

@@ -5,6 +5,9 @@
 #endif
 #include "HardwareSerial.h"
 
+#include <PubSubClient.h>
+
+
 class PowerSerial {
 
 	const char *PATTERN_BEZUG_KEY  = "1-0:1.8.0*255"; //Bezugsregister kWh
@@ -15,8 +18,6 @@ class PowerSerial {
 	const char *PATTERN_MOMENTAN_L3    = "1-0:61.7.255*255"; //Momentanleistung-L3 W
 	const char *PATTERN_MOMENTAN_L1_3  = "1-0:1.7.255*255"; //Momentanleistung- L1 - L3 W
 
-public:
-
 	const char *EXTERN_BEZUG_KEY   = "zaehler/strom/stand/bezug";
 	const char *EXTERN_LIEFER_KEY  = "zaehler/strom/stand/lieferung";
 
@@ -25,26 +26,31 @@ public:
 	const char *EXTERN_MOMENTAN_L3     = "zaehler/strom/leistung/phase/3"; //Momentanleistung-L3 W
 	const char *EXTERN_MOMENTAN_L1_3   = "zaehler/strom/leistung/phasen"; //Momentanleistung- L1 - L3 W
 
-	HardwareSerial *serial;
-	const char *name;
-	unsigned long ms;
-	unsigned long maxage;
-	int count;
-    const char *mqttPrefix;
+	void processLine(String line);
+
 	String var_bezug;
 	String var_liefer;
 	String var_momentan_L1;
 	String var_momentan_L2;
 	String var_momentan_L3;
 	String var_momentan_L1_3;
-	void begin(const char* _name, HardwareSerial& _serial, unsigned long _maxage, const char *_mqttPrefix);
+
+	unsigned long waitTime;
+	unsigned long lastupdate;
+	int count;
+
+	HardwareSerial *serial;
+    const char *mqttPrefix;
+
+public:
+
+	static PowerSerial swu, solar;
+	const char *name;
+
+	static void setup(unsigned long _waitTime);
+	void begin(const char* _name, HardwareSerial& _serial, const char *_mqttPrefix, unsigned long _waitTime);
 	void parseMe();
-	void processLine(String line);
-	static PowerSerial power, solar;
-	static void setup();
+	void transmitDataToMqtt(PubSubClient mqttClient);
 	int getCount();
 };
 
-#define FROMNET PowerSerial::power.kwh[0]
-#define INTONET PowerSerial::power.kwh[1]
-#define SOLAR PowerSerial::solar.kwh[1]
