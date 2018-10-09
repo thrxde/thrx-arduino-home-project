@@ -13,10 +13,16 @@ class PowerSerial {
 	const char *PATTERN_BEZUG_KEY  = "1-0:1.8.0*255"; //Bezugsregister kWh
 	const char *PATTERN_LIEFER_KEY = "1-0:2.8.0*255"; //Lieferregister kWh
 
-	const char *PATTERN_MOMENTAN_L1    = "1-0:21.7.255*255"; //Momentanleistung-L1 W
-	const char *PATTERN_MOMENTAN_L2    = "1-0:41.7.255*255"; //Momentanleistung-L2 W
-	const char *PATTERN_MOMENTAN_L3    = "1-0:61.7.255*255"; //Momentanleistung-L3 W
-	const char *PATTERN_MOMENTAN_L1_3  = "1-0:1.7.255*255"; //Momentanleistung- L1 - L3 W
+	const char *PATTERN_MOMENTAN_255_L1    = "1-0:21.7.255*255"; //Momentanleistung-L1 W
+	const char *PATTERN_MOMENTAN_255_L2    = "1-0:41.7.255*255"; //Momentanleistung-L2 W
+	const char *PATTERN_MOMENTAN_255_L3    = "1-0:61.7.255*255"; //Momentanleistung-L3 W
+	const char *PATTERN_MOMENTAN_255_L1_3  = "1-0:1.7.255*255"; //Momentanleistung- L1 - L3 W
+
+	const char *PATTERN_MOMENTAN_0_L1    = "1-0:21.7.0*255"; //Momentanleistung-L1 W
+	const char *PATTERN_MOMENTAN_0_L2    = "1-0:41.7.0*255"; //Momentanleistung-L2 W
+	const char *PATTERN_MOMENTAN_0_L3    = "1-0:61.7.0*255"; //Momentanleistung-L3 W
+	const char *PATTERN_MOMENTAN_0_L1_3  = "1-0:1.7.0*255"; //Momentanleistung- L1 - L3 W
+
 
 	const char *EXTERN_BEZUG_KEY   = "zaehler/strom/stand/bezug";
 	const char *EXTERN_LIEFER_KEY  = "zaehler/strom/stand/lieferung";

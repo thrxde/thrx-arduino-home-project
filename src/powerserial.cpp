@@ -18,7 +18,7 @@ void PowerSerial::setup(unsigned long _waitTime) {
 	}
 	Serial.println("PowerSerial::setup()");
 	swu.begin("SWU", Serial2, "swu", _waitTime);
-	solar.begin("Solar", Serial3, "piko", _waitTime);
+	solar.begin("Solar", Serial3, "solar", _waitTime);
 }
 
 void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	const char *_mqttPrefix, unsigned long _waitTime) {
@@ -116,8 +116,7 @@ void PowerSerial::parseMe() {
 
 void PowerSerial::transmitDataToMqtt(PubSubClient mqttClient) {
 	int currentWaitTime = millis() - lastupdate;
-	if (currentWaitTime < 50) {
-		delay(100);
+	if (currentWaitTime < 5000) {
 		//Serial.print(".");
 	} else {
     	Serial.print(name);
@@ -176,8 +175,8 @@ void PowerSerial::transmitDataToMqtt(PubSubClient mqttClient) {
 
 
 void PowerSerial::processLine(String line) {
-//	Serial.print("processLine: ");
-//	Serial.print(line);
+	Serial.print("processLine: ");
+	Serial.print(line);
 	if (line.endsWith("\n")){
 		line = line.substring(0,line.indexOf('\n'));
 	}
@@ -195,22 +194,22 @@ void PowerSerial::processLine(String line) {
 //    	Serial.print("key: ");
 //	    Serial.println(key);
 		String value = "";
-			if (line.indexOf('*',line.indexOf('(')) > 0){
-				value = line.substring(line.indexOf('(')+1, line.lastIndexOf('*'));
-			} else {
-				value = line.substring(line.indexOf('(')+1, line.lastIndexOf(')'));
-			}    
+		if (line.indexOf('*',line.indexOf('(')) > 0){
+			value = line.substring(line.indexOf('(')+1, line.lastIndexOf('*'));
+		} else {
+			value = line.substring(line.indexOf('(')+1, line.lastIndexOf(')'));
+		}    
 		if (key.startsWith(PATTERN_BEZUG_KEY)){
 			var_bezug = value;
 		} else if (key.startsWith(PATTERN_LIEFER_KEY)){
 			var_liefer = value;
-		} else if (key.startsWith(PATTERN_MOMENTAN_L1)){
+		} else if (key.startsWith(PATTERN_MOMENTAN_255_L1) || key.startsWith(PATTERN_MOMENTAN_0_L1)){
 			var_momentan_L1 = value;
-		} else if (key.startsWith(PATTERN_MOMENTAN_L2)){
+		} else if (key.startsWith(PATTERN_MOMENTAN_255_L2) || key.startsWith(PATTERN_MOMENTAN_0_L2)){
 			var_momentan_L2=value;
-		} else if (key.startsWith(PATTERN_MOMENTAN_L3)){
+		} else if (key.startsWith(PATTERN_MOMENTAN_255_L3) || key.startsWith(PATTERN_MOMENTAN_0_L3)){
 			var_momentan_L3=value;
-		} else if (key.startsWith(PATTERN_MOMENTAN_L1_3)){
+		} else if (key.startsWith(PATTERN_MOMENTAN_255_L1_3) || key.startsWith(PATTERN_MOMENTAN_0_L1_3)){
 			var_momentan_L1_3=value;
 		} else if (key.startsWith("1-0:0.0.0*255")){
 //			Serial.println("3 NOT MAPPED:  "+line);
