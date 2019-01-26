@@ -4,27 +4,31 @@
 // - extern variable definitions
 // In the appropriate section
 
-#ifndef irTest_H_
-#define irTest_H_
+#ifndef main_H_
+#define main_H_
 #include "Arduino.h"
-//add your includes for the project irTest here
+//add your includes for the project "main" here
 #include "powerserial.h"
 
+//#include <SPI.h>
+//#include <Dns.h>
+#include <Ethernet.h>
+#include <PubSubClient.h>
 
 //end of add your includes here
+
+//add your function definitions for the project "main" here
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 void loop();
 void setup();
+void callback(char* topic, byte* payload, unsigned int length);
+void connectMqttServer();
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-//add your function definitions for the project irTest here
-
-
-
-
 //Do not add code below this line
-#endif /* irTest_H_ */
+#endif /* main_H_ */
