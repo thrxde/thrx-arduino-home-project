@@ -1,2 +1,5 @@
 /Release
 /.settings
+.pioenvs/
+.piolibdeps/
+.vscode/
