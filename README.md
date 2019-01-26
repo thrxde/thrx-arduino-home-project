@@ -1,7 +1,7 @@
 thrx-arduino-home-project
 =========================
 
-arduino connector to emoncms for thrx home
+arduino connector to mqtt / openhab for thrx home
 
 Done:
 * read data from easyMeter 
