@@ -3,7 +3,7 @@
 
 
 char pName[] = "thrx home project - mqtt";
-char pVersion[] = "Version 1.0.2";
+char pVersion[] = "Version 1.0.3";
 byte mac[] = { 0x54, 0x52, 0x58, 0x10, 0x00, 0x18 }; //Ethernet shield mac address
 byte ip[] = { 192, 168, 1, 8 };                     //Ethernet shield ip address
 byte gateway[] = { 192, 168, 1, 1 };                //Gateway ip
