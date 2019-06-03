@@ -51,7 +51,7 @@ void setup() {
 	Serial.begin(9600);
 	delay(1000);
 	Serial.println("home thrx project - mqtt");
-	Serial.println("Version 1.0.1");
+	Serial.println("Version 1.0.2");
 	delay(1000);
 
    	Ethernet.begin(mac, ip); //configure manually
