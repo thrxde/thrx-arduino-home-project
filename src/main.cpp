@@ -8,9 +8,10 @@ byte gateway[] = { 192, 168, 1, 1 };                //Gateway ip
 byte mqttServer[] = { 192,168,1,3 };                 //Openhab / Mosquitto  ip
 char mqttUser[] = "openhabian";
 char mqttPass[] = "mqtt4openhab";
-char mqttClientName[]  = "Arduino Zaehlerschrank";
+char mqttClientName[]  = "arduino_1";
 char topicConnect[]    = "arduino/1/status";
 char topicLastWill[]   = "arduino/1/status";
+char topicCommand[]    = "arduino/1/command";
 unsigned long waitTime = 5000; // max mqtt transmit rate 5sec
 
 //int wasConnected;
@@ -40,6 +41,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
 	// Konvertierung der nachricht in ein String
 	String msgString = String(message_buff);
 	Serial.println("Payload: " + msgString);
+
+	// ToDo hier Arduino restart implementieren
 }
 
 void setup() {
@@ -48,7 +51,7 @@ void setup() {
 	Serial.begin(9600);
 	delay(1000);
 	Serial.println("home thrx project - mqtt");
-	Serial.println("Version 1.0.0");
+	Serial.println("Version 1.0.1");
 	delay(1000);
 
    	Ethernet.begin(mac, ip); //configure manually
@@ -82,8 +85,9 @@ void connectMqttServer() {
 		if (mqttClient.connect(mqttClientName, mqttUser, mqttPass,topicLastWill,1,false,"offline")) {
 			mqttClient.publish(topicConnect ,"online");
         	// Abonieren von Nachrichten mit dem angegebenen Topic
-			mqttClient.subscribe("openHAB/broadcast");
-    	    Serial.println("MQTT subscribed to openHAB/broadcast");
+			mqttClient.subscribe(topicCommand);
+    	    Serial.print("MQTT subscribed to ");
+    	    Serial.println(topicCommand);
 		}
 	}
 }
