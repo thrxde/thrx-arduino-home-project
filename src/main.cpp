@@ -53,7 +53,7 @@ void setup() {
 	Serial.begin(9600);
 	delay(1000);
 	Serial.println(pName);
-	Serial.println(pVersion);
+	Serial.println("Version: " + pVersion);
 	delay(1000);
 
    	Ethernet.begin(mac, ip); //configure manually
