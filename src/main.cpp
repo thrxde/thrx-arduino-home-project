@@ -2,6 +2,8 @@
 #include "main.h"
 
 
+char pName[] = "thrx home project - mqtt";
+char pVersion[] = "Version 1.0.2";
 byte mac[] = { 0x54, 0x52, 0x58, 0x10, 0x00, 0x18 }; //Ethernet shield mac address
 byte ip[] = { 192, 168, 1, 8 };                     //Ethernet shield ip address
 byte gateway[] = { 192, 168, 1, 1 };                //Gateway ip
@@ -50,8 +52,8 @@ void setup() {
 	delay(1000);
 	Serial.begin(9600);
 	delay(1000);
-	Serial.println("home thrx project - mqtt");
-	Serial.println("Version 1.0.2");
+	Serial.println(pName);
+	Serial.println(pVersion);
 	delay(1000);
 
    	Ethernet.begin(mac, ip); //configure manually
