@@ -1,5 +1,7 @@
 /Release
 /.settings
+.pio
 .pioenvs/
 .piolibdeps/
 .vscode/
+private_config.ini

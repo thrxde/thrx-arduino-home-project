@@ -1,16 +1,18 @@
 // Do not remove the include below
 #include "main.h"
+#include "config.h"
 
 
+char pName[] = "thrx home project - mqtt";
+char pVersion[] = "Version 1.0.4";
 byte mac[] = { 0x54, 0x52, 0x58, 0x10, 0x00, 0x18 }; //Ethernet shield mac address
 byte ip[] = { 192, 168, 1, 8 };                     //Ethernet shield ip address
 byte gateway[] = { 192, 168, 1, 1 };                //Gateway / Router IP
 byte mqttServer[] = { 192,168,1,3 };                 //Openhab / Mosquitto  IP
-char mqttUser[] = "username";                       // MQTT Username
-char mqttPass[] = "password";                       // MQTT Password
-char mqttClientName[]  = "Arduino Zaehlerschrank";
+char mqttClientName[]  = "arduino_1";
 char topicConnect[]    = "arduino/1/status";
 char topicLastWill[]   = "arduino/1/status";
+char topicCommand[]    = "arduino/1/command";
 unsigned long waitTime = 5000; // max mqtt transmit rate 5sec
 
 //int wasConnected;
@@ -47,8 +49,8 @@ void setup() {
 	delay(1000);
 	Serial.begin(9600);
 	delay(1000);
-	Serial.println("home thrx project - mqtt");
-	Serial.println("Version 1.0.0");
+	Serial.println(pName);
+	Serial.println("Version: " + String(pVersion));
 	delay(1000);
 
    	Ethernet.begin(mac, ip); //configure manually
@@ -79,11 +81,12 @@ void connectMqttServer() {
 	if (!mqttClient.connected()) {
 	    Serial.println("MQTT not connected");
 		// connect (clientID, username, password, willTopic, willQoS, willRetain, willMessage)
-		if (mqttClient.connect(mqttClientName, mqttUser, mqttPass,topicLastWill,1,false,"offline")) {
+		if (mqttClient.connect(mqttClientName, MQTT_USER, MQTT_PASS,topicLastWill,1,false,"offline")) {
 			mqttClient.publish(topicConnect ,"online");
         	// Abonieren von Nachrichten mit dem angegebenen Topic
-			mqttClient.subscribe("openHAB/broadcast");
-    	    Serial.println("MQTT subscribed to openHAB/broadcast");
+			mqttClient.subscribe(topicCommand);
+    	    Serial.print("MQTT subscribed to ");
+    	    Serial.println(topicCommand);
 		}
 	}
 }
