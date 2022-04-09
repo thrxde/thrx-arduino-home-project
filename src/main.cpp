@@ -8,7 +8,7 @@ char pVersion[] = "Version 1.0.4";
 byte mac[] = { 0x54, 0x52, 0x58, 0x10, 0x00, 0x18 }; //Ethernet shield mac address
 byte ip[] = { 192, 168, 1, 8 };                     //Ethernet shield ip address
 byte gateway[] = { 192, 168, 1, 1 };                //Gateway / Router IP
-byte mqttServer[] = { 192,168,1,3 };                 //Openhab / Mosquitto  IP
+byte mqttServer[] = { 192,168,1,4 };                 //Openhab / Mosquitto  IP
 char mqttClientName[]  = "arduino_1";
 char topicConnect[]    = "arduino/1/status";
 char topicLastWill[]   = "arduino/1/status";
@@ -25,15 +25,15 @@ PubSubClient mqttClient(mqttServer, 1883, callback, ethClient);
 
 void callback(char* topic, byte* payload, unsigned int length) {
 	// handle message arrived
-	// Zähler
+	// electricity meter
 	int i = 0;
-	// Hilfsvariablen für die Konvertierung der Nachricht in ein String
+	// variables for converting the message to a string
 	char message_buff[100];
 	
 	Serial.println("Message arrived: topic: " + String(topic));
 	Serial.println("Length: " + String(length,DEC));
 	
-	// Kopieren der Nachricht und erstellen eines Bytes mit abschließender \0
+	// Copy the message and create a byte with a terminating 0
 	for(unsigned int i = 0; i < length; i++) {
 		message_buff[i] = payload[i];
 	}
@@ -77,16 +77,21 @@ void connectMqttServer() {
     // combined length of clientId, username and password exceed this,
     // you will need to increase the value of MQTT_MAX_PACKET_SIZE in
     // PubSubClient.h
- 	// Aufbau der Verbindung mit MQTT falls diese nicht offen ist.
+ 	// Establishing the connection to MQTT server if it is not open.
 	if (!mqttClient.connected()) {
 	    Serial.println("MQTT not connected");
 		// connect (clientID, username, password, willTopic, willQoS, willRetain, willMessage)
 		if (mqttClient.connect(mqttClientName, MQTT_USER, MQTT_PASS,topicLastWill,1,false,"offline")) {
 			mqttClient.publish(topicConnect ,"online");
-        	// Abonieren von Nachrichten mit dem angegebenen Topic
+        	// Subscribe to messages with the specified topic
 			mqttClient.subscribe(topicCommand);
     	    Serial.print("MQTT subscribed to ");
     	    Serial.println(topicCommand);
+		} else {
+    	    Serial.print("Error connection to MQTT using:");
+//    	    Serial.print(MQTT_USER);
+//    	    Serial.print(MQTT_PASS);
+			Serial.println();
 		}
 	}
 }
