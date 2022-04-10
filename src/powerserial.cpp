@@ -29,7 +29,7 @@ void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	const char *
 	mqttPrefix=_mqttPrefix;
 	waitTime=_waitTime;
 	lastupdate = 0;
-	Serial.print("PowerSerial::begin():");
+	Serial.println("PowerSerial::begin():");
 }
 
 // /ESY5Q3DA1024 V3.03
@@ -72,6 +72,7 @@ void PowerSerial::parseMe() {
 		int c = serial->read();
 		char c2 = c;
 		if ( c > 0) {
+			//Serial.print(c); 
 			if (c=='/') { // start telegramm
 				append = 1;
 			}
@@ -114,59 +115,74 @@ void PowerSerial::parseMe() {
  
 }
 
-void PowerSerial::transmitDataToMqtt(PubSubClient mqttClient) {
+void PowerSerial::transmitDataToMqtt(MqttHandler mqttHandler) {
 	int currentWaitTime = millis() - lastupdate;
 	if (currentWaitTime < 5000) {
 		//Serial.print(".");
 	} else {
+    	Serial.println();
     	Serial.print(name);
-		Serial.println(":PowerSerial::transmit Every 5 seconds");
+		Serial.println(":PowerSerial::transmit Every 5 seconds (start)");
 		lastupdate = millis();
 
-		if (mqttClient.connected()) {
-			Serial.print(name);
-		    Serial.println(":PowerSerial::Publish to MQTT");
-			if (var_bezug.length() > 0) {
-				Serial.println(mqttClient.publish(
-					((String)mqttPrefix + "/" + (String)EXTERN_BEZUG_KEY).c_str(),
-					var_bezug.c_str()
-				));
-			}
-			if (var_liefer.length() > 0) {
-				mqttClient.publish(
-					((String)mqttPrefix + "/" + (String)EXTERN_LIEFER_KEY).c_str(),
-					var_liefer.c_str()
-				);
-			}
-			if (var_momentan_L1.length() > 0) {
-				mqttClient.publish(
-					((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L1).c_str(),
-					var_momentan_L1.c_str()
-				);
-			}
-			if (var_momentan_L2.length() > 0) {
-				mqttClient.publish(
-					((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L2).c_str(),
-					var_momentan_L2.c_str()
-				);
-			}
-			if (var_momentan_L3.length() > 0) {
-				mqttClient.publish(
-					((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L3).c_str(),
-					var_momentan_L3.c_str()
-				);
-			}
-			if (var_momentan_L1_3.length() > 0) {
-				mqttClient.publish(
-					((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L1_3).c_str(),
-					var_momentan_L1_3.c_str()
-				);
-			}
+		Serial.print(name);
+		Serial.println(":PowerSerial::Publish to MQTT");
+		if (var_bezug.length() > 0) {
+			mqttHandler.publish(
+				((String)mqttPrefix + "/" + (String)EXTERN_BEZUG_KEY).c_str(),
+				var_bezug.c_str()
+			);
 		} else {
-			Serial.print(name);
-		    Serial.print(":PowerSerial ");
-			Serial.println("ERROR: MQTT not connected .... waiting: ");
-		}	
+			Serial.print("var_bezug -- ");
+			Serial.println(var_bezug.length());
+		}
+		if (var_liefer.length() > 0) {
+			mqttHandler.publish(
+				((String)mqttPrefix + "/" + (String)EXTERN_LIEFER_KEY).c_str(),
+				var_liefer.c_str()
+			);
+		} else {
+			Serial.print("var_liefer -- ");
+			Serial.println(var_liefer.length());
+		}
+		if (var_momentan_L1.length() > 0) {
+			mqttHandler.publish(
+				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L1).c_str(),
+				var_momentan_L1.c_str()
+			);
+		} else {
+			Serial.print("var_momentan_L1 -- ");
+			Serial.println(var_momentan_L1.length());
+		}
+		if (var_momentan_L2.length() > 0) {
+			mqttHandler.publish(
+				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L2).c_str(),
+				var_momentan_L2.c_str()
+			);
+		} else {
+			Serial.print("var_momentan_L2 -- ");
+			Serial.println(var_momentan_L2.length());
+		}
+		if (var_momentan_L3.length() > 0) {
+			mqttHandler.publish(
+				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L3).c_str(),
+				var_momentan_L3.c_str()
+			);
+		} else {
+			Serial.print("var_momentan_L3 -- ");
+			Serial.println(var_momentan_L3.length());
+		}
+		if (var_momentan_L1_3.length() > 0) {
+			mqttHandler.publish(
+				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L1_3).c_str(),
+				var_momentan_L1_3.c_str()
+			);
+		} else {
+			Serial.print("var_momentan_L1_3 -- ");
+			Serial.println(var_momentan_L1_3.length());
+		}
+    	Serial.print(name);
+		Serial.println(":PowerSerial::transmit Every 5 seconds (end)");
 		count = 0;
 	}
 
