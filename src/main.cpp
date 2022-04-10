@@ -1,6 +1,5 @@
 // Do not remove the include below
 #include "main.h"
-#include "config.h"
 
 
 char pName[] = "thrx home project - mqtt";
@@ -19,6 +18,7 @@ unsigned long waitTime = 5000; // max mqtt transmit rate 5sec
 
 EthernetClient ethClient;
 PubSubClient mqttClient(mqttServer, 1883, callback, ethClient);
+MqttHandler mqttHandler{mqttClient};
 
 
 //#define port 80
@@ -93,6 +93,8 @@ void connectMqttServer() {
 //    	    Serial.print(MQTT_PASS);
 			Serial.println();
 		}
+	} else {
+		mqttClient.loop();
 	}
 }
 
@@ -110,12 +112,12 @@ void loop() {
 	}
 
 	if (PowerSerial::swu.getCount() < 0) {
-		PowerSerial::swu.transmitDataToMqtt(mqttClient);
+		PowerSerial::swu.transmitDataToMqtt(mqttHandler);
 	} else {
 		Serial.println("SWU: Powerserial has no result .... waiting: ");
 	}
 	if (PowerSerial::solar.getCount() < 0) {
-		PowerSerial::solar.transmitDataToMqtt(mqttClient);
+		PowerSerial::solar.transmitDataToMqtt(mqttHandler);
 	} else {
 		Serial.println("Solar: Powerserial has no result .... waiting: ");
 	}

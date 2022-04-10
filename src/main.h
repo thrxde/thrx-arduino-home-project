@@ -8,12 +8,9 @@
 #define main_H_
 #include "Arduino.h"
 //add your includes for the project "main" here
+#include "config.h"
 #include "powerserial.h"
-
-//#include <SPI.h>
-//#include <Dns.h>
 #include <Ethernet.h>
-#include <PubSubClient.h>
 
 //end of add your includes here
 

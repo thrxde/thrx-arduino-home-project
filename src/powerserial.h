@@ -4,8 +4,8 @@
 #include "WProgram.h"
 #endif
 #include "HardwareSerial.h"
+#include "mqtthandler.h"
 
-#include <PubSubClient.h>
 
 
 class PowerSerial {
@@ -56,7 +56,7 @@ public:
 	static void setup(unsigned long _waitTime);
 	void begin(const char* _name, HardwareSerial& _serial, const char *_mqttPrefix, unsigned long _waitTime);
 	void parseMe();
-	void transmitDataToMqtt(PubSubClient mqttClient);
+	void transmitDataToMqtt(MqttHandler mqttHandler);
 	int getCount();
 };
 
