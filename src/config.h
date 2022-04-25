@@ -2,6 +2,11 @@
 
 // check (required) parameters passed from the ini
 // create your own private_config.ini with the data. See private_config.template.ini
+
+#ifndef ONE_WIRE_BUS
+#define ONE_WIRE_BUS 2 /* Default Digitalport Pin 2 */
+#endif
+
 //#ifndef SERIAL_BAUD
 //#error Need to pass SERIAL_BAUD
 //#endif
