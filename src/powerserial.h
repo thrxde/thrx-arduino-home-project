@@ -1,12 +1,8 @@
-#if defined(ARDUINO) && ARDUINO >= 100
+#pragma once
+
 #include "Arduino.h"
-#else
-#include "WProgram.h"
-#endif
 #include "HardwareSerial.h"
 #include "mqtthandler.h"
-
-
 
 class PowerSerial {
 
