@@ -4,10 +4,10 @@
 
 char pName[] = "thrx home project - mqtt";
 char pVersion[] = "Version 1.0.5";
-byte mac[] = { 0x54, 0x52, 0x58, 0x10, 0x00, 0x18 }; //Ethernet shield mac address
-byte ip[] = { 192, 168, 1, 8 };                     //Ethernet shield ip address
-byte gateway[] = { 192, 168, 1, 1 };                //Gateway / Router IP
-byte mqttServer[] = { 192, 168, 1, 3 };             //Openhab / Mosquitto  IP
+byte mac[] = MAC_ADDRESS;     		//Ethernet shield mac address
+byte ip[] = IP_ADDRESS;       		//Ethernet shield ip address
+byte gateway[] = GATEWAY_IP;  		//Gateway / Router IP
+byte mqttServer[] = MQTT_SERVER_IP; //Openhab / Mosquitto  IP
 char mqttClientName[]  = "arduino_1";
 char topicConnect[]    = "arduino/1/status";
 char topicLastWill[]   = "arduino/1/status";
@@ -15,7 +15,6 @@ char topicCommand[]    = "arduino/1/command";
 unsigned long waitTime = 5000; // max mqtt transmit rate 5sec
 
 //int wasConnected;
-
 EthernetClient ethClient;
 PubSubClient mqttClient(mqttServer, 1883, callback, ethClient);
 MqttHandler mqttHandler{mqttClient};
