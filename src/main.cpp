@@ -3,11 +3,10 @@
 
 
 char pName[] = "thrx home project - mqtt";
-char pVersion[] = "Version 1.0.5";
+char pVersion[] = "Version 1.0.6";
 byte mac[] = MAC_ADDRESS;     		//Ethernet shield mac address
-byte ip[] = IP_ADDRESS;       		//Ethernet shield ip address
-byte gateway[] = GATEWAY_IP;  		//Gateway / Router IP
-byte mqttServer[] = MQTT_SERVER_IP; //Openhab / Mosquitto  IP
+const char *ip = IP_ADDRESS;       		//Ethernet shield ip address
+const char *mqttServer = MQTT_SERVER_IP; //Openhab / Mosquitto  IP
 char mqttClientName[]  = "arduino_1";
 char topicConnect[]    = "arduino/1/status";
 char topicLastWill[]   = "arduino/1/status";
@@ -52,19 +51,24 @@ void setup() {
 	Serial.println("Version: " + String(pVersion));
 	delay(1000);
 
-   	Ethernet.begin(mac, ip); //configure manually
+    IPAddress apip;
+	if (apip.fromString(ip)) { // try to parse into the IPAddress
+    	Serial.print("Local IP address: ");
+		Serial.println(apip); // print the parsed IPAddress 
+	} else {
+		Serial.println("UnParsable IP");
+	}
+   	Ethernet.begin(mac, apip); //configure manually
 
 	delay(1000);
-	Serial.print("Local IP address: ");
-	for (byte thisByte = 0; thisByte < 4; thisByte++) {
-		// print the value of each byte of the IP address:
-		Serial.print(Ethernet.localIP()[thisByte], DEC);
-		Serial.print(".");
-	}
 	Serial.println();
+   	Serial.print("Local IP address: ");
+	Serial.println(Ethernet.localIP());
+   	Serial.print("DNS IP address: ");
 	Serial.println(Ethernet.dnsServerIP());
+   	Serial.print("Gateway IP address: ");
 	Serial.println(Ethernet.gatewayIP());
-	Serial.println();
+ 	Serial.println();
 
   	connectMqttServer();
 

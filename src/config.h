@@ -26,11 +26,6 @@
 #error Need to pass "ip_address" in private_config.ini
 #endif
 
-// Router / Gateway ip
-#ifndef GATEWAY_IP
-#error Need to pass "gateway_ip" in private_config.ini
-#endif
-
 // Mosquitto  ip (Openhab)
 #ifndef MQTT_SERVER_IP
 #error Need to pass "mqtt_server_ip" in private_config.ini
