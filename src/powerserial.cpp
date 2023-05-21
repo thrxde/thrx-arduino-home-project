@@ -98,20 +98,20 @@ void PowerSerial::parseMe() {
 	}
 	Serial.println();
 	Serial.print(name);
-	Serial.println(":PowerSerialand GO ...");
+	Serial.println(":PowerSerial GO ...");
 	Serial.println(complete);
-	int lastCommaPosition = 0;
-	int commaPosition = 0;
+	int lastNewLinePosition = 0;
+	int newLinePosition = 0;
 	do {
-		lastCommaPosition = commaPosition;
-		commaPosition = complete.indexOf('\n',commaPosition+1);
-		if (commaPosition != -1) {
-			processLine(complete.substring(lastCommaPosition+1, commaPosition+1));
+		lastNewLinePosition = newLinePosition;
+		newLinePosition = complete.indexOf('\n',newLinePosition+1);
+		if (newLinePosition != -1) {
+			processLine(complete.substring(lastNewLinePosition+1, newLinePosition+1));
 		} else { // here after the last comma is found
-			processLine(complete.substring(lastCommaPosition+1, complete.length()));
-			commaPosition = -1;
+			processLine(complete.substring(lastNewLinePosition+1, complete.length()));
+			newLinePosition = -1;
 		}
-	} while (commaPosition >= 0);
+	} while (newLinePosition >= 0);
  
 }
 
