@@ -48,11 +48,13 @@ void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	const char *
 
 void PowerSerial::parseMe() {
 	if (count < 0){
+    	Serial.println();
 		Serial.print(name);
 		Serial.print(":PowerSerial::parseMe():  Waiting ... count=");
    	    Serial.println(count);
 		return;
 	} else {
+    	Serial.println();
 		Serial.print(name); 		
 		Serial.print(":PowerSerial::parseMe(): count=");
 	    Serial.println(count);
@@ -70,24 +72,31 @@ void PowerSerial::parseMe() {
 	int tryToRead = 1;
 	while(tryToRead > 0){
 		int c = serial->read();
-		char c2 = c;
 		if ( c > 0) {
-			//Serial.print(c); 
 			if (c=='/') { // start telegramm
+            	Serial.println();
+				Serial.print(name); 		
+		        Serial.println(":PowerSerial:: start telegram");
+			    complete = "";
 				append = 1;
 			}
 
 			if (append == 1) {
+         		char c2 = c;
+    			Serial.print(c2); 
 				complete.concat(c2);
 				if (c=='!') {	// ende telegramm
 					append = 0;
 					tryToRead = 0;
+					Serial.println();
+					Serial.print(name); 		
+					Serial.println(":PowerSerial:: end telegram");
 				}
 			}
 		} else {
+			Serial.print("x"); 
 			tryToRead++;
 			delay(10);
-			//Serial.print("x"); 
 			if (tryToRead >= 500){
 				Serial.print(name); 		
 		        Serial.print(":PowerSerial:: ERROR no data to read, retry count: ");
@@ -98,8 +107,11 @@ void PowerSerial::parseMe() {
 	}
 	Serial.println();
 	Serial.print(name);
-	Serial.println(":PowerSerial GO ...");
+	Serial.print(":PowerSerial GO ...");
+	Serial.println();
 	Serial.println(complete);
+	Serial.println();
+
 	int lastNewLinePosition = 0;
 	int newLinePosition = 0;
 	do {
