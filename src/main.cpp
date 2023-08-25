@@ -12,6 +12,9 @@ char topicConnect[]    = "arduino/1/status";
 char topicLastWill[]   = "arduino/1/status";
 char topicCommand[]    = "arduino/1/command";
 unsigned long waitTime = 5000; // max mqtt transmit rate 5sec
+unsigned long resetTime = 0;
+
+void(* resetFunc) (void) = 0; // create a standard reset function
 
 //int wasConnected;
 EthernetClient ethClient;
@@ -73,6 +76,9 @@ void setup() {
   	connectMqttServer();
 
 	PowerSerial::setup(waitTime);
+
+	// reset every 6h
+	resetTime = millis() + 21600000;
 }
 
 void connectMqttServer() {
@@ -103,8 +109,14 @@ void connectMqttServer() {
 
 // The loop function is called in an endless loop
 void loop() {
-    //Serial.println("loop start");
-    //	delay(5);
+
+	if (resetTime < millis()) {
+		Serial.println("Resetting Arduino time is up");
+		resetFunc();
+	} else if (millis() % 60000 == 0){ //print every minute
+		// print in minutes	
+		Serial.println("Resetting Arduino in: " + String((resetTime - millis())/60000) + " min");
+	}
 
 	connectMqttServer();
 	if (PowerSerial::swu.getCount() >= 0){

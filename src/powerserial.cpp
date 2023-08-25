@@ -71,38 +71,41 @@ void PowerSerial::parseMe() {
 	int append = 0;
 	int tryToRead = 1;
 	while(tryToRead > 0){
-		int c = serial->read();
-		if ( c > 0) {
-			if (c=='/') { // start telegramm
-            	Serial.println();
-				Serial.print(name); 		
-		        Serial.println(":PowerSerial:: start telegram");
-			    complete = "";
-				append = 1;
-			}
-
-			if (append == 1) {
-         		char c2 = c;
-    			Serial.print(c2); 
-				complete.concat(c2);
-				if (c=='!') {	// ende telegramm
-					append = 0;
-					tryToRead = 0;
+		if (serial->available()){
+			char c = serial->read();
+			if ( c > 0) {
+				if (c=='/') { // start telegramm
 					Serial.println();
 					Serial.print(name); 		
-					Serial.println(":PowerSerial:: end telegram");
+					Serial.println(":PowerSerial:: start telegram");
+					complete = "";
+					append = 1;
+				}
+
+				if (append == 1) {
+					//Serial.print(c); 
+					complete.concat(c);
+					if (c=='!') {	// ende telegramm
+						append = 0;
+						tryToRead = 0;
+						Serial.println();
+						Serial.print(name); 		
+						Serial.println(":PowerSerial:: end telegram");
+					}
+				}
+			} else {
+				Serial.print("x"); 
+				tryToRead++;
+				//delay(10);
+				if (tryToRead >= 500){
+					Serial.print(name); 		
+					Serial.print(":PowerSerial:: ERROR no data to read, retry count: ");
+					Serial.println(tryToRead);
+					return;
 				}
 			}
 		} else {
-			Serial.print("x"); 
-			tryToRead++;
-			delay(10);
-			if (tryToRead >= 500){
-				Serial.print(name); 		
-		        Serial.print(":PowerSerial:: ERROR no data to read, retry count: ");
-	            Serial.println(tryToRead);
-				return;
-			}
+			Serial.print("."); 
 		}
 	}
 	Serial.println();
@@ -112,6 +115,9 @@ void PowerSerial::parseMe() {
 	Serial.println(complete);
 	Serial.println();
 
+	Serial.print(name); 		
+	Serial.println(":PowerSerial:: processLine:");
+	Serial.println();
 	int lastNewLinePosition = 0;
 	int newLinePosition = 0;
 	do {
@@ -203,7 +209,6 @@ void PowerSerial::transmitDataToMqtt(MqttHandler mqttHandler) {
 
 
 void PowerSerial::processLine(String line) {
-	Serial.print("processLine: ");
 	Serial.print(line);
 	if (line.endsWith("\n")){
 		line = line.substring(0,line.indexOf('\n'));
@@ -212,25 +217,26 @@ void PowerSerial::processLine(String line) {
 		line = line.substring(0,line.indexOf('\r'));
 	}
 	if (line.indexOf('/') >= 0){
-//		Serial.println("/ found -> start it");
+		Serial.println("/ found -> start it");
 		count = 0;
 	} else if (line.indexOf('!') >= 0){
-//		Serial.println("! found -> set count to -1");
+		Serial.println("! found -> set count to -1");
 		count = -1;
 	} else if (line.indexOf('(') > 0){
 		String key = line.substring(0, line.indexOf('('));
-//    	Serial.print("key: ");
-//	    Serial.println(key);
+ 	    Serial.print(key);
+    	Serial.print(" ");
 		String value = "";
 		if (line.indexOf('*',line.indexOf('(')) > 0){
 			value = line.substring(line.indexOf('(')+1, line.lastIndexOf('*'));
 		} else {
 			value = line.substring(line.indexOf('(')+1, line.lastIndexOf(')'));
 		}    
+	    Serial.println(value);
 		if (key.startsWith(PATTERN_BEZUG_KEY)){
-			var_bezug = value;
+			var_bezug = value; 
 		} else if (key.startsWith(PATTERN_LIEFER_KEY)){
-			var_liefer = value;
+			var_liefer = value; 
 		} else if (key.startsWith(PATTERN_MOMENTAN_255_L1) || key.startsWith(PATTERN_MOMENTAN_0_L1)){
 			var_momentan_L1 = value;
 		} else if (key.startsWith(PATTERN_MOMENTAN_255_L2) || key.startsWith(PATTERN_MOMENTAN_0_L2)){
