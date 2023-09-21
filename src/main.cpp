@@ -23,7 +23,6 @@ MqttHandler mqttHandler{mqttClient};
 
 
 //#define port 80
-
 void callback(char* topic, byte* payload, unsigned int length) {
 	// handle message arrived
 	// electricity meter
@@ -77,8 +76,6 @@ void setup() {
 
 	PowerSerial::setup(waitTime);
 
-	// reset every 6h
-	resetTime = millis() + 21600000;
 }
 
 void connectMqttServer() {
@@ -98,8 +95,6 @@ void connectMqttServer() {
     	    Serial.println(topicCommand);
 		} else {
     	    Serial.print("Error connection to MQTT using:");
-//    	    Serial.print(MQTT_USER);
-//    	    Serial.print(MQTT_PASS);
 			Serial.println();
 		}
 	} else {
@@ -110,13 +105,11 @@ void connectMqttServer() {
 // The loop function is called in an endless loop
 void loop() {
 
-	if (resetTime < millis()) {
+	if ( millis()  >= 86400000){ //call reset every 24 hours (1 Day).
 		Serial.println("Resetting Arduino time is up");
+		mqttClient.disconnect();
 		resetFunc();
-	} else if (millis() % 60000 == 0){ //print every minute
-		// print in minutes	
-		Serial.println("Resetting Arduino in: " + String((resetTime - millis())/60000) + " min");
-	}
+	} 
 
 	connectMqttServer();
 	if (PowerSerial::swu.getCount() >= 0){
