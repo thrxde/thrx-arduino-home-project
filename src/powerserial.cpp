@@ -132,8 +132,7 @@ void PowerSerial::processLine(String line) {
 	} else if (line.indexOf('!') >= 0){
 		Serial.println("! found -> set count to -1");
 		count = -1;
-	} else if (line.indexOf('(') > 0 && 
-		(line.length() == 35 or line.length() == 29)){
+	} else if (line.indexOf('(') > 0){
 		String key = line.substring(0, line.indexOf('('));
  	    Serial.print(key);
     	Serial.print(" ");
@@ -202,7 +201,7 @@ void PowerSerial::transmitDataToMqtt(MqttHandler mqttHandler) {
 			Serial.print(" -- ");
 			Serial.println(var_liefer.length());
 		}
-		if (var_momentan_L1.length() > 0 && var_momentan_L1.length() == 9)  {
+		if (validateValue(var_momentan_L1))  {
 			mqttHandler.publish(
 				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L1).c_str(),
 				var_momentan_L1.c_str()
@@ -213,7 +212,7 @@ void PowerSerial::transmitDataToMqtt(MqttHandler mqttHandler) {
 			Serial.print(" -- ");
 			Serial.println(var_momentan_L1.length());
 		}
-		if (var_momentan_L2.length() > 0 && var_momentan_L2.length() == 9) {
+		if (validateValue(var_momentan_L2)) {
 			mqttHandler.publish(
 				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L2).c_str(),
 				var_momentan_L2.c_str()
@@ -224,7 +223,7 @@ void PowerSerial::transmitDataToMqtt(MqttHandler mqttHandler) {
 			Serial.print(" -- ");
 			Serial.println(var_momentan_L2.length());
 		}
-		if (var_momentan_L3.length() > 0 && var_momentan_L3.length() == 9) {
+		if (validateValue(var_momentan_L3)) {
 			mqttHandler.publish(
 				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L3).c_str(),
 				var_momentan_L3.c_str()
@@ -235,7 +234,7 @@ void PowerSerial::transmitDataToMqtt(MqttHandler mqttHandler) {
 			Serial.print(" -- ");
 			Serial.println(var_momentan_L3.length());
 		}
-		if (var_momentan_L1_3.length() > 0 && var_momentan_L1_3.length() == 9) {
+		if (validateValue(var_momentan_L1_3)) {
 			mqttHandler.publish(
 				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L1_3).c_str(),
 				var_momentan_L1_3.c_str()
@@ -251,6 +250,21 @@ void PowerSerial::transmitDataToMqtt(MqttHandler mqttHandler) {
 		count = 0;
 	}
 
+}
+
+int PowerSerial::validateValue(String value) {
+	if (value.length() > 0) {
+		if (value.length() == 9) {
+			return true;
+		} else if (value.length() == 10 && value.startsWith("-")) {
+			return true;
+		} else {
+			return false;
+		}
+		return true;
+	} else {
+		return false;
+	}
 }
 
 int PowerSerial::getCount(){

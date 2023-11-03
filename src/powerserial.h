@@ -57,6 +57,7 @@ public:
 	void begin(const char* _name, HardwareSerial& _serial, const char *_mqttPrefix, unsigned long _waitTime);
 	void parseMe();
 	void transmitDataToMqtt(MqttHandler mqttHandler);
+	int validateValue(String value);
 	int getCount();
 };
 

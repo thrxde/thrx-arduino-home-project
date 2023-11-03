@@ -7,34 +7,53 @@ uses arduino to transmit data to mqtt server
 
 ### EasyMeter example:
 
-// /ESY5Q3DA1024 V3.03
-//
-// 1-0:0.0.0*255(112940679)
-// 1-0:1.8.0*255(00001013.0368091*kWh) //Bezugsregister kWh // length 35
-// 1-0:2.8.0*255(00000376.0128508*kWh) //Lieferregister kWh // length 35
-// 1-0:21.7.255*255(000046.04*W) //Momentanleistung-L1 W // length 29
-// 1-0:41.7.255*255(000122.30*W) //Momentanleistung-L2 W // length 29
-// 1-0:61.7.255*255(000079.03*W) //Momentanleistung-L3 W // length 29
-// 1-0:1.7.255*255(000247.37*W)  //Momentanleistung- L1 - L3 W // length 29
-// 1-0:96.5.5*255(82)  //StatusHex // length 18
-// 0-0:96.1.255*255(1ESY1233002534)
-// !
-//
+
+```	
+/ESY5Q3DA1024 V3.03
+
+1-0:0.0.0*255(112940679)
+1-0:1.8.0*255(00001013.0368091*kWh) //Bezugsregister kWh // length 35 // length 16
+1-0:2.8.0*255(00000376.0128508*kWh) //Lieferregister kWh // length 35 // length 16
+1-0:21.7.255*255(000046.04*W) //Momentanleistung-L1 W // length 29 // length 9 if  // if negative length 10
+1-0:41.7.255*255(000122.30*W) //Momentanleistung-L2 W // length 29 // length 9
+1-0:61.7.255*255(000079.03*W) //Momentanleistung-L3 W // length 29 // length 9
+1-0:1.7.255*255(000247.37*W)  //Momentanleistung- L1 - L3 W // length 28 // length 9
+1-0:96.5.5*255(82)  //StatusHex // length 18
+0-0:96.1.255*255(1ESY1233002534)
+!
+```
+
+```
+ESY5Q3DA1004 V3.04
+
+1-0:0.0.0*255(1ESY1160312007)
+1-0:1.8.0/ESY5Q3DA1004 V3.04
+
+1-0:0.0.0*255(1ESY1160312007)
+1-0:1.8.0*255(00068364.0280170*kWh) //Lieferregister kWh // length 35 // length 16
+1-0:21.7.0*255(-000002.41*W)  //Momentanleistung-L1 W // length 28 // length 9  // if negative length 10       
+1-0:41.7.0*255(000000.00*W)   //Momentanleistung-L2 W // length 28 // length 9 // if negative length 10
+1-0:61.7.0*255(000000.00*W)   //Momentanleistung-L3 W // length 28 // length 9 // if negative length 10
+1-0:1.7.0*255(-000002.41*W)   //Momentanleistung- L1 - L3 W // length 27 // length 9 // if negative length 10
+1-0:96.5.5*255(80)
+0-0:96.1.255*255(1ESY1160312007)
+!
+```
 
 ### EasyMeter protocol:
 
-// 1-0:1.8.0*255 //Bezugsregister kWh // length 16
-// 1-0:2.8.0*255 //Lieferregister kWh // length 16
+// 1-0:1.8.0*255 //Bezugsregister kWh // length 13
+// 1-0:2.8.0*255 //Lieferregister kWh // length 13
 
-// 1-0:21.7.255*255 //Momentanleistung-L1 W // length 9
-// 1-0:41.7.255*255 //Momentanleistung-L2 W // length 9
-// 1-0:61.7.255*255 //Momentanleistung-L3 W // length 9
-// 1-0:1.7.255*255 //Momentanleistung- L1 - L3 W // length 9
+// 1-0:21.7.255*255 //Momentanleistung-L1 W // length 16
+// 1-0:41.7.255*255 //Momentanleistung-L2 W // length 16
+// 1-0:61.7.255*255 //Momentanleistung-L3 W // length 16
+// 1-0:1.7.255*255 //Momentanleistung- L1 - L3 W // length 15
 
-// 1-0:21.7.0*255 //Momentanleistung-L1 W // length 9
-// 1-0:41.7.0*255 //Momentanleistung-L2 W // length 9
-// 1-0:61.7.0*255 //Momentanleistung-L3 W // length 9
-// 1-0:1.7.0*255 //Momentanleistung- L1 - L3 W // length 9
+// 1-0:21.7.0*255 //Momentanleistung-L1 W // length 14
+// 1-0:41.7.0*255 //Momentanleistung-L2 W // length 14
+// 1-0:61.7.0*255 //Momentanleistung-L3 W // length 14
+// 1-0:1.7.0*255 //Momentanleistung- L1 - L3 W // length 13
 
 ## Status:
 
