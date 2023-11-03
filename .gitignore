@@ -5,3 +5,4 @@
 .piolibdeps/
 .vscode/
 private_config.ini
+/log
