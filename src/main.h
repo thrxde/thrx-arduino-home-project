@@ -22,7 +22,8 @@ extern "C" {
 void loop();
 void setup();
 void callback(char* topic, byte* payload, unsigned int length);
-void connectMqttServer();
+bool connectMqttServer();
+bool reconnect();
 #ifdef __cplusplus
 } // extern "C"
 #endif

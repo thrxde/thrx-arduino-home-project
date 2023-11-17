@@ -8,11 +8,14 @@ byte mac[] = MAC_ADDRESS;     		//Ethernet shield mac address
 const char *ip = IP_ADDRESS;       		//Ethernet shield ip address
 const char *mqttServer = MQTT_SERVER_IP; //Openhab / Mosquitto  IP
 char mqttClientName[]  = "arduino_1";
-char topicConnect[]    = "arduino/1/status";
-char topicLastWill[]   = "arduino/1/status";
+char topicStatus[]     = "arduino/1/status";
+char topicLastWill[]   = "arduino/1/will";
+char topicReset[]      = "arduino/1/reset";
+char topicUptime[]     = "arduino/1/uptime";
 char topicCommand[]    = "arduino/1/command";
 unsigned long waitTime = 5000; // max mqtt transmit rate 5sec
 unsigned long resetTime = 0;
+long lastReconnectAttempt = 0;
 
 void(* resetFunc) (void) = 0; // create a standard reset function
 
@@ -78,7 +81,7 @@ void setup() {
 
 }
 
-void connectMqttServer() {
+bool connectMqttServer() {
    // Note - the default maximum packet size is 128 bytes. If the
     // combined length of clientId, username and password exceed this,
     // you will need to increase the value of MQTT_MAX_PACKET_SIZE in
@@ -86,32 +89,59 @@ void connectMqttServer() {
  	// Establishing the connection to MQTT server if it is not open.
 	if (!mqttClient.connected()) {
 	    Serial.println("MQTT not connected");
-		// connect (clientID, username, password, willTopic, willQoS, willRetain, willMessage)
-		if (mqttClient.connect(mqttClientName, MQTT_USER, MQTT_PASS,topicLastWill,1,false,"offline")) {
-			mqttClient.publish(topicConnect ,"online");
-        	// Subscribe to messages with the specified topic
-			mqttClient.subscribe(topicCommand);
-    	    Serial.print("MQTT subscribed to ");
-    	    Serial.println(topicCommand);
-		} else {
-    	    Serial.print("Error connection to MQTT using:");
-			Serial.println();
+		long now = millis();
+	    Serial.println("MQTT not connected now: " + String(now));
+    	if (now - lastReconnectAttempt > 5000) {
+     	    Serial.println("MQTT try reconnect");
+			lastReconnectAttempt = now;
+			// Attempt to reconnect
+			if (reconnect()) {
+         	    Serial.println("MQTT reconnect successful");
+				lastReconnectAttempt = 0;
+			}
 		}
+		
 	} else {
+   	    Serial.println("MQTT loop");
 		mqttClient.loop();
 	}
+	return mqttClient.connected();
+}
+
+boolean reconnect() {
+ 	// connect (clientID, username, password, willTopic, willQoS, willRetain, willMessage)
+	if (mqttClient.connect(mqttClientName, MQTT_USER, MQTT_PASS,topicLastWill,1,false,"disconnected")) {
+		mqttClient.publish(topicLastWill ,"connected");
+		mqttClient.publish(topicUptime ,String(millis()).c_str());
+		// Subscribe to messages with the specified topic
+		mqttClient.subscribe(topicCommand);
+		Serial.print("MQTT subscribed to ");
+		Serial.println(topicCommand);
+	} else {
+		Serial.print("Error connection to MQTT using:");
+		Serial.println();
+	}
+	return mqttClient.connected();
 }
 
 // The loop function is called in an endless loop
 void loop() {
-
+	if (!connectMqttServer()) {
+   	    Serial.println("MQTT not connected to server");
+		return;
+	}
+	mqttClient.publish(topicUptime ,String(millis()).c_str());
 	if ( millis()  >= 86400000){ //call reset every 24 hours (1 Day).
 		Serial.println("Resetting Arduino time is up");
+		mqttClient.publish(topicReset ,"true");
+		mqttClient.publish(topicStatus ,"offline");
 		mqttClient.disconnect();
 		resetFunc();
-	} 
+	} else {
+		mqttClient.publish(topicReset ,"false");
+		mqttClient.publish(topicStatus ,"online");
+	}
 
-	connectMqttServer();
 	if (PowerSerial::swu.getCount() >= 0){
     	PowerSerial::swu.parseMe();
 	}
