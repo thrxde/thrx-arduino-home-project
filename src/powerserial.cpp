@@ -55,12 +55,24 @@ void PowerSerial::parseMe() {
 	String complete = "";
 	int append = 0;
 	int tryToRead = 1;
+	unsigned long parseStart = millis();
+
 	while(tryToRead > 0){
+		// Feed watchdog during potentially long serial reads
+		wdt_reset();
+
+		// Timeout protection: abort if reading takes too long
+		if ((millis() - parseStart) > PARSE_TIMEOUT_MS) {
+			Serial.println();
+			Serial.print(name);
+			Serial.println(":PowerSerial:: TIMEOUT - aborting telegram read after 30s");
+			return;
+		}
+
 		if (serial->available()){
 			char c = serial->read();
 			if ( c > 0) {
 				if (append == 1) {
-					//Serial.print(c); 
 					complete.concat(c);
 					if (c=='!') {	// ende telegramm
 						append = 0;
@@ -91,6 +103,8 @@ void PowerSerial::parseMe() {
 			}
 		} else {
 			Serial.print("."); 
+			// No data available - small delay to prevent busy-waiting
+			delay(1);
 		}
 	}
 	Serial.println();
@@ -167,8 +181,8 @@ void PowerSerial::processLine(String line) {
 
 }
 
-void PowerSerial::transmitDataToMqtt(MqttHandler mqttHandler) {
-	int currentWaitTime = millis() - lastupdate;
+void PowerSerial::transmitDataToMqtt(MqttHandler &mqttHandler) {
+	unsigned long currentWaitTime = millis() - lastupdate;
 	if (currentWaitTime < 5000) {
 		//Serial.print(".");
 	} else {
@@ -261,7 +275,6 @@ int PowerSerial::validateValue(String value) {
 		} else {
 			return false;
 		}
-		return true;
 	} else {
 		return false;
 	}
@@ -270,5 +283,3 @@ int PowerSerial::validateValue(String value) {
 int PowerSerial::getCount(){
 	return count;
 }
-
-

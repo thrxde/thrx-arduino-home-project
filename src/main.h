@@ -11,6 +11,7 @@
 #include "config.h"
 #include "powerserial.h"
 #include <Ethernet.h>
+#include <avr/wdt.h>
 
 //end of add your includes here
 
@@ -24,6 +25,7 @@ void setup();
 void callback(char* topic, byte* payload, unsigned int length);
 bool connectMqttServer();
 bool reconnect();
+void hardwareReset();
 #ifdef __cplusplus
 } // extern "C"
 #endif

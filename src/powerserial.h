@@ -1,3 +1,6 @@
+#ifndef POWERSERIAL_H_
+#define POWERSERIAL_H_
+
 #if defined(ARDUINO) && ARDUINO >= 100
 #include "Arduino.h"
 #else
@@ -5,7 +8,7 @@
 #endif
 #include "HardwareSerial.h"
 #include "mqtthandler.h"
-
+#include <avr/wdt.h>
 
 
 class PowerSerial {
@@ -32,6 +35,8 @@ class PowerSerial {
 	const char *EXTERN_MOMENTAN_L3     = "zaehler/strom/leistung/phase/3"; //Momentanleistung-L3 W
 	const char *EXTERN_MOMENTAN_L1_3   = "zaehler/strom/leistung/phasen"; //Momentanleistung- L1 - L3 W
 
+	static const unsigned long PARSE_TIMEOUT_MS = 30000; // 30 second max for telegram read
+
 	void processLine(String line);
 
 	String var_bezug;
@@ -56,8 +61,9 @@ public:
 	static void setup(unsigned long _waitTime);
 	void begin(const char* _name, HardwareSerial& _serial, const char *_mqttPrefix, unsigned long _waitTime);
 	void parseMe();
-	void transmitDataToMqtt(MqttHandler mqttHandler);
+	void transmitDataToMqtt(MqttHandler &mqttHandler);
 	int validateValue(String value);
 	int getCount();
 };
 
+#endif /* POWERSERIAL_H_ */

@@ -1,3 +1,6 @@
+#ifndef MQTTHANDLER_H_
+#define MQTTHANDLER_H_
+
 #if defined(ARDUINO) && ARDUINO >= 100
 #include "Arduino.h"
 #else
@@ -9,16 +12,13 @@
 
 class MqttHandler {
 
-
-PubSubClient mqttClient;
-
+PubSubClient &mqttClient;
 
 public:
 
-	MqttHandler(PubSubClient _mqttClient) {
-		mqttClient = _mqttClient;
-	}
+	MqttHandler(PubSubClient &_mqttClient) : mqttClient(_mqttClient) {}
 	void publish(const char* topic, const char* payload);
 
 };
 
+#endif /* MQTTHANDLER_H_ */
