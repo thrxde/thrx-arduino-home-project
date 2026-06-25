@@ -193,11 +193,10 @@ void PowerSerial::transmitDataToMqtt(MqttHandler &mqttHandler) {
 
 		Serial.print(name);
 		Serial.println(":PowerSerial::Publish to MQTT");
+		char topicBuf[48];
 		if (var_bezug.length() > 0  && var_bezug.length() == 16)  { 
-			mqttHandler.publish(
-				((String)mqttPrefix + "/" + (String)EXTERN_BEZUG_KEY).c_str(),
-				var_bezug.c_str()
-			);
+			snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_BEZUG_KEY);
+			mqttHandler.publish(topicBuf, var_bezug.c_str());
 		} else {
 			Serial.print("var_bezug -- ");
 			Serial.print(var_bezug);
@@ -205,10 +204,8 @@ void PowerSerial::transmitDataToMqtt(MqttHandler &mqttHandler) {
 			Serial.println(var_bezug.length());
 		}
 		if (var_liefer.length() > 0 && var_liefer.length() == 16) {
-			mqttHandler.publish(
-				((String)mqttPrefix + "/" + (String)EXTERN_LIEFER_KEY).c_str(),
-				var_liefer.c_str()
-			);
+			snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_LIEFER_KEY);
+			mqttHandler.publish(topicBuf, var_liefer.c_str());
 		} else {
 			Serial.print("var_liefer -- ");
 			Serial.print(var_liefer);
@@ -216,10 +213,8 @@ void PowerSerial::transmitDataToMqtt(MqttHandler &mqttHandler) {
 			Serial.println(var_liefer.length());
 		}
 		if (validateValue(var_momentan_L1))  {
-			mqttHandler.publish(
-				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L1).c_str(),
-				var_momentan_L1.c_str()
-			);
+			snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_MOMENTAN_L1);
+			mqttHandler.publish(topicBuf, var_momentan_L1.c_str());
 		} else {
 			Serial.print("var_momentan_L1 -- ");
 			Serial.print(var_momentan_L1);
@@ -227,10 +222,8 @@ void PowerSerial::transmitDataToMqtt(MqttHandler &mqttHandler) {
 			Serial.println(var_momentan_L1.length());
 		}
 		if (validateValue(var_momentan_L2)) {
-			mqttHandler.publish(
-				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L2).c_str(),
-				var_momentan_L2.c_str()
-			);
+			snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_MOMENTAN_L2);
+			mqttHandler.publish(topicBuf, var_momentan_L2.c_str());
 		} else {
 			Serial.print("var_momentan_L2 -- ");
 			Serial.print(var_momentan_L2);
@@ -238,10 +231,8 @@ void PowerSerial::transmitDataToMqtt(MqttHandler &mqttHandler) {
 			Serial.println(var_momentan_L2.length());
 		}
 		if (validateValue(var_momentan_L3)) {
-			mqttHandler.publish(
-				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L3).c_str(),
-				var_momentan_L3.c_str()
-			);
+			snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_MOMENTAN_L3);
+			mqttHandler.publish(topicBuf, var_momentan_L3.c_str());
 		} else {
 			Serial.print("var_momentan_L3 -- ");
 			Serial.print(var_momentan_L3);
@@ -249,10 +240,8 @@ void PowerSerial::transmitDataToMqtt(MqttHandler &mqttHandler) {
 			Serial.println(var_momentan_L3.length());
 		}
 		if (validateValue(var_momentan_L1_3)) {
-			mqttHandler.publish(
-				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L1_3).c_str(),
-				var_momentan_L1_3.c_str()
-			);
+			snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_MOMENTAN_L1_3);
+			mqttHandler.publish(topicBuf, var_momentan_L1_3.c_str());
 		} else {
 			Serial.print("var_momentan_L1_3 -- ");
 			Serial.print(var_momentan_L1_3);

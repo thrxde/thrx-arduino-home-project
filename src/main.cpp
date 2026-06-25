@@ -16,7 +16,8 @@ char topicCommand[]    = "arduino/1/command";
 char topicVersion[]    = "arduino/1/version";
 unsigned long waitTime = 5000; // max mqtt transmit rate 5sec
 unsigned long resetTime = 0;
-long lastReconnectAttempt = 0;
+unsigned long lastReconnectAttempt = 0;
+unsigned long lastStatusPublish = 0;
 
 EthernetClient ethClient;
 PubSubClient mqttClient(mqttServer, 1883, callback, ethClient);
@@ -40,8 +41,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
 	// handle message arrived
 	char message_buff[100];
 	
-	Serial.println("Message arrived: topic: " + String(topic));
-	Serial.println("Length: " + String(length, DEC));
+	Serial.print("Message arrived: topic: ");
+	Serial.println(topic);
+	Serial.print("Length: ");
+	Serial.println(length);
 	
 	// Safely copy payload to buffer (max 99 chars)
 	unsigned int copyLen = (length < 99) ? length : 99;
@@ -50,11 +53,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
 	}
 	message_buff[copyLen] = '\0';
 	
-	String msgString = String(message_buff);
-	Serial.println("Payload: " + msgString);
+	Serial.print("Payload: ");
+	Serial.println(message_buff);
 
 	// Handle reboot command
-	if (String(topic) == topicCommand && msgString == "reboot") {
+	if (strcmp(topic, topicCommand) == 0 && strcmp(message_buff, "reboot") == 0) {
 		Serial.println("Reboot command received via MQTT");
 		mqttClient.publish(topicStatus, "rebooting");
 		mqttClient.disconnect();
@@ -64,14 +67,18 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void setup() {
-	// Disable watchdog early in setup (in case we got here via WDT reset)
+	// Clear reset flags and disable watchdog early in setup
+	// MCUSR must be cleared BEFORE wdt_disable() per AVR app note AVR132,
+	// otherwise WDT reset flag persists and bootloader may hang
+	MCUSR = 0;
 	wdt_disable();
 
 	delay(1000);
 	Serial.begin(9600);
 	delay(1000);
 	Serial.println(pName);
-	Serial.println("Version: " + String(pVersion));
+	Serial.print("Version: ");
+	Serial.println(pVersion);
 	delay(1000);
 
     IPAddress apip;
@@ -111,8 +118,9 @@ bool connectMqttServer() {
  	// Establishing the connection to MQTT server if it is not open.
 	if (!mqttClient.connected()) {
 	    Serial.println("MQTT not connected");
-		long now = millis();
-	    Serial.println("MQTT not connected now: " + String(now));
+		unsigned long now = millis();
+		Serial.print("MQTT not connected now: ");
+		Serial.println(now);
     	if (now - lastReconnectAttempt > 5000) {
      	    Serial.println("MQTT try reconnect");
 			lastReconnectAttempt = now;
@@ -135,7 +143,9 @@ boolean reconnect() {
 	if (mqttClient.connect(mqttClientName, MQTT_USER, MQTT_PASS, topicLastWill, 1, false, "disconnected")) {
 		mqttClient.publish(topicLastWill, "connected");
 		mqttClient.publish(topicVersion, pVersion);
-		mqttClient.publish(topicUptime, String(millis()).c_str());
+		char uptimeBuf[12];
+		ltoa(millis(), uptimeBuf, 10);
+		mqttClient.publish(topicUptime, uptimeBuf);
 		// Subscribe to messages with the specified topic
 		mqttClient.subscribe(topicCommand);
 		Serial.print("MQTT subscribed to ");
@@ -156,7 +166,6 @@ void loop() {
    	    Serial.println("MQTT not connected to server");
 		return;
 	}
-	mqttClient.publish(topicUptime, String(millis()).c_str());
 	if (millis() >= 86400000) { // reset every 24 hours (1 Day)
 		Serial.println("Resetting Arduino - 24h uptime reached");
 		mqttClient.publish(topicReset, "true");
@@ -164,7 +173,14 @@ void loop() {
 		mqttClient.disconnect();
 		delay(100);
 		hardwareReset(); // proper hardware reset via WDT
-	} else {
+	}
+
+	// Publish status at most every 5 seconds (not every loop iteration)
+	if (millis() - lastStatusPublish >= 5000) {
+		lastStatusPublish = millis();
+		char uptimeBuf[12];
+		ltoa(millis(), uptimeBuf, 10);
+		mqttClient.publish(topicUptime, uptimeBuf);
 		mqttClient.publish(topicReset, "false");
 		mqttClient.publish(topicStatus, "online");
 	}
