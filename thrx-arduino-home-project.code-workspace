@@ -2,10 +2,6 @@
     "folders": [
         {
             "path": "."
-        },
-        {
-            "name": "thrx-marlin-firmware",
-            "path": "../thrx-marlin-firmware"
         }
     ]
 }
