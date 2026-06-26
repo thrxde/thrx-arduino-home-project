@@ -3,7 +3,7 @@
 
 
 char pName[] = "thrx home project - mqtt";
-char pVersion[] = "1.1.1";
+char pVersion[] = "1.1.2";
 byte mac[] = MAC_ADDRESS;     		//Ethernet shield mac address
 const char *ip = IP_ADDRESS;       		//Ethernet shield ip address
 const char *mqttServer = MQTT_SERVER_IP; //Openhab / Mosquitto  IP
@@ -14,6 +14,7 @@ char topicReset[]      = "arduino/1/reset";
 char topicUptime[]     = "arduino/1/uptime";
 char topicCommand[]    = "arduino/1/command";
 char topicVersion[]    = "arduino/1/version";
+char topicFreeram[]    = "arduino/1/freeram";
 unsigned long waitTime = 5000; // max mqtt transmit rate 5sec
 unsigned long resetTime = 0;
 unsigned long lastReconnectAttempt = 0;
@@ -23,6 +24,12 @@ EthernetClient ethClient;
 PubSubClient mqttClient(mqttServer, 1883, callback, ethClient);
 MqttHandler mqttHandler(mqttClient);
 
+
+int freeRam() {
+	extern int __heap_start, *__brkval;
+	int v;
+	return (int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
+}
 
 /**
  * Hardware reset using AVR Watchdog Timer.
@@ -162,12 +169,15 @@ void loop() {
 	// Feed the watchdog - must be called within 8 seconds
 	wdt_reset();
 
+	// Maintain Ethernet stack — cleans up stale W5100 sockets
+	Ethernet.maintain();
+
 	if (!connectMqttServer()) {
    	    Serial.println("MQTT not connected to server");
 		return;
 	}
-	if (millis() >= 86400000) { // reset every 24 hours (1 Day)
-		Serial.println("Resetting Arduino - 24h uptime reached");
+	if (millis() >= 21600000) { // reset every 6 hours
+		Serial.println("Resetting Arduino - 6h uptime reached");
 		mqttClient.publish(topicReset, "true");
 		mqttClient.publish(topicStatus, "offline");
 		mqttClient.disconnect();
@@ -181,6 +191,9 @@ void loop() {
 		char uptimeBuf[12];
 		ltoa(millis(), uptimeBuf, 10);
 		mqttClient.publish(topicUptime, uptimeBuf);
+		char ramBuf[8];
+		itoa(freeRam(), ramBuf, 10);
+		mqttClient.publish(topicFreeram, ramBuf);
 		mqttClient.publish(topicReset, "false");
 		mqttClient.publish(topicStatus, "online");
 	}

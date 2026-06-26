@@ -35,7 +35,7 @@ class PowerSerial {
 	const char *EXTERN_MOMENTAN_L3     = "zaehler/strom/leistung/phase/3"; //Momentanleistung-L3 W
 	const char *EXTERN_MOMENTAN_L1_3   = "zaehler/strom/leistung/phasen"; //Momentanleistung- L1 - L3 W
 
-	static const unsigned long PARSE_TIMEOUT_MS = 30000; // 30 second max for telegram read
+	static const unsigned long PARSE_TIMEOUT_MS = 10000; // 10 second max for telegram read (was 30s — two parseMe() calls must stay within MQTT keepalive 15s)
 
 	void processLine(String line);
 
