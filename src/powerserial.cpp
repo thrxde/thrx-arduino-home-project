@@ -65,17 +65,12 @@ void PowerSerial::parseMe() {
 		Serial.println(count);
 	}
 
-	var_bezug = "";
-	var_liefer = "";
-	var_momentan_L1 = "";
-	var_momentan_L2 = "";
-	var_momentan_L3 = "";
-	var_momentan_L1_3 = "";
-
+	// Read telegram into local buffer — member vars UNTOUCHED until success
 	String complete = "";
 	int append = 0;
 	int tryToRead = 1;
 	unsigned long parseStart = millis();
+	bool parseSuccess = false;
 
 	while (tryToRead > 0) {
 		// Feed watchdog during potentially long serial reads
@@ -85,7 +80,7 @@ void PowerSerial::parseMe() {
 		if ((millis() - parseStart) > PARSE_TIMEOUT_MS) {
 			Serial.print(name);
 			Serial.println(F(": TIMEOUT - aborting telegram read"));
-			return;
+			return;  // member vars unchanged — last good values preserved
 		}
 
 		if (serial->available()) {
@@ -96,6 +91,7 @@ void PowerSerial::parseMe() {
 					if (c == '!') {  // end of telegram
 						append = 0;
 						tryToRead = 0;
+						parseSuccess = true;
 					}
 				} else if (c == '/') {  // start of telegram
 					complete = "";
@@ -105,20 +101,23 @@ void PowerSerial::parseMe() {
 						Serial.println(F(": start telegram"));
 					}
 				}
-				// Removed: Serial.print("u") — was flooding USB bridge
 			} else {
-				// Removed: Serial.print("x") — was flooding USB bridge
 				tryToRead++;
 				if (tryToRead >= 500) {
 					Serial.print(name);
 					Serial.println(F(": ERROR no data, retry limit"));
-					return;
+					return;  // member vars unchanged
 				}
 			}
 		} else {
-			// Removed: Serial.print(".") — was flooding USB bridge
 			delay(1);
 		}
+	}
+
+	if (!parseSuccess) {
+		Serial.print(name);
+		Serial.println(F(": parse incomplete (no end marker)"));
+		return;  // member vars unchanged
 	}
 
 	// Summary (always printed — minimal output)
@@ -131,66 +130,76 @@ void PowerSerial::parseMe() {
 		Serial.println(complete);
 	}
 
-	// Process telegram lines
+	// Parse into LOCAL temporaries — not into member vars
+	String new_bezug = "";
+	String new_liefer = "";
+	String new_L1 = "";
+	String new_L2 = "";
+	String new_L3 = "";
+	String new_L1_3 = "";
+	int new_count = 0;
+
 	int lastNewLinePosition = 0;
 	int newLinePosition = 0;
 	do {
 		lastNewLinePosition = newLinePosition;
 		newLinePosition = complete.indexOf('\n', newLinePosition + 1);
+		String segment;
 		if (newLinePosition != -1) {
-			processLine(complete.substring(lastNewLinePosition + 1, newLinePosition + 1));
+			segment = complete.substring(lastNewLinePosition + 1, newLinePosition + 1);
 		} else {
-			processLine(complete.substring(lastNewLinePosition + 1, complete.length()));
+			segment = complete.substring(lastNewLinePosition + 1, complete.length());
 			newLinePosition = -1;
 		}
+
+		// Process line into local vars
+		int end = segment.length();
+		if (end > 0 && segment.charAt(end - 1) == '\n') end--;
+		if (end > 0 && segment.charAt(end - 1) == '\r') end--;
+		String trimmed = segment.substring(0, end);
+
+		if (debugMode) Serial.println(trimmed);
+
+		if (trimmed.indexOf('(') > 0) {
+			String key = trimmed.substring(0, trimmed.indexOf('('));
+			String value = "";
+			if (trimmed.indexOf('*', trimmed.indexOf('(')) > 0) {
+				value = trimmed.substring(trimmed.indexOf('(') + 1, trimmed.lastIndexOf('*'));
+			} else {
+				value = trimmed.substring(trimmed.indexOf('(') + 1, trimmed.lastIndexOf(')'));
+			}
+
+			if (debugMode) {
+				Serial.print(key);
+				Serial.print(F(" "));
+				Serial.println(value);
+			}
+
+			if (key.startsWith(PATTERN_BEZUG_KEY)) {
+				new_bezug = value;
+			} else if (key.startsWith(PATTERN_LIEFER_KEY)) {
+				new_liefer = value;
+			} else if (key.startsWith(PATTERN_MOMENTAN_255_L1) || key.startsWith(PATTERN_MOMENTAN_0_L1)) {
+				new_L1 = value;
+			} else if (key.startsWith(PATTERN_MOMENTAN_255_L2) || key.startsWith(PATTERN_MOMENTAN_0_L2)) {
+				new_L2 = value;
+			} else if (key.startsWith(PATTERN_MOMENTAN_255_L3) || key.startsWith(PATTERN_MOMENTAN_0_L3)) {
+				new_L3 = value;
+			} else if (key.startsWith(PATTERN_MOMENTAN_255_L1_3) || key.startsWith(PATTERN_MOMENTAN_0_L1_3)) {
+				new_L1_3 = value;
+			}
+			new_count++;
+		}
 	} while (newLinePosition >= 0);
-}
 
-void PowerSerial::processLine(const String& line) {
-	// Find effective end (trim \r\n without modifying the const reference)
-	int end = line.length();
-	if (end > 0 && line.charAt(end - 1) == '\n') end--;
-	if (end > 0 && line.charAt(end - 1) == '\r') end--;
-	String trimmed = line.substring(0, end);
-
-	if (debugMode) Serial.println(trimmed);
-
-	if (trimmed.indexOf('/') >= 0) {
-		if (debugMode) Serial.println(F("/ found -> start"));
-		count = 0;
-	} else if (trimmed.indexOf('!') >= 0) {
-		if (debugMode) Serial.println(F("! found -> done"));
-		count = -1;
-	} else if (trimmed.indexOf('(') > 0) {
-		String key = trimmed.substring(0, trimmed.indexOf('('));
-		String value = "";
-		if (trimmed.indexOf('*', trimmed.indexOf('(')) > 0) {
-			value = trimmed.substring(trimmed.indexOf('(') + 1, trimmed.lastIndexOf('*'));
-		} else {
-			value = trimmed.substring(trimmed.indexOf('(') + 1, trimmed.lastIndexOf(')'));
-		}
-
-		if (debugMode) {
-			Serial.print(key);
-			Serial.print(F(" "));
-			Serial.println(value);
-		}
-
-		if (key.startsWith(PATTERN_BEZUG_KEY)) {
-			var_bezug = value;
-		} else if (key.startsWith(PATTERN_LIEFER_KEY)) {
-			var_liefer = value;
-		} else if (key.startsWith(PATTERN_MOMENTAN_255_L1) || key.startsWith(PATTERN_MOMENTAN_0_L1)) {
-			var_momentan_L1 = value;
-		} else if (key.startsWith(PATTERN_MOMENTAN_255_L2) || key.startsWith(PATTERN_MOMENTAN_0_L2)) {
-			var_momentan_L2 = value;
-		} else if (key.startsWith(PATTERN_MOMENTAN_255_L3) || key.startsWith(PATTERN_MOMENTAN_0_L3)) {
-			var_momentan_L3 = value;
-		} else if (key.startsWith(PATTERN_MOMENTAN_255_L1_3) || key.startsWith(PATTERN_MOMENTAN_0_L1_3)) {
-			var_momentan_L1_3 = value;
-		}
-		count++;
-	}
+	// ATOMIC promotion — only update member vars after full successful parse
+	var_bezug = new_bezug;
+	var_liefer = new_liefer;
+	var_momentan_L1 = new_L1;
+	var_momentan_L2 = new_L2;
+	var_momentan_L3 = new_L3;
+	var_momentan_L1_3 = new_L1_3;
+	count = -1;  // mark as ready for transmit
 }
 
 void PowerSerial::transmitDataToMqtt(MqttHandler &mqttHandler) {

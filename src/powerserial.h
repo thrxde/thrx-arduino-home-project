@@ -33,8 +33,6 @@ class PowerSerial {
 
 	static const unsigned long PARSE_TIMEOUT_MS = 10000; // 10s max for telegram read
 
-	void processLine(const String& line);
-
 	String var_bezug;
 	String var_liefer;
 	String var_momentan_L1;
