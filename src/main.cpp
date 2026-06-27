@@ -3,7 +3,7 @@
 
 
 char pName[] = "thrx home project - mqtt";
-char pVersion[] = "1.1.3";
+char pVersion[] = "1.1.4";
 byte mac[] = MAC_ADDRESS;     		//Ethernet shield mac address
 const char *ip = IP_ADDRESS;       		//Ethernet shield ip address
 const char *mqttServer = MQTT_SERVER_IP; //Openhab / Mosquitto  IP
@@ -194,16 +194,10 @@ void loop() {
 		return;
 	}
 
-	// Preventive reset every 6 hours (avoids long-term resource exhaustion)
-	static unsigned long bootTime = millis();
-	if (millis() - bootTime >= 21600000UL) {
-		Serial.println(F("Resetting Arduino - 6h uptime reached"));
-		mqttClient.publish(topicReset, "true");
-		mqttClient.publish(topicStatus, "offline");
-		mqttClient.disconnect();
-		delay(100);
-		hardwareReset();
-	}
+	// Preventive reset disabled in v1.1.4 — the 6h WDT reset was crashing
+	// the ATmega16U2 USB bridge on restart. With serial flooding fixed (v1.1.3),
+	// long uptimes should be stable. Monitor freeram for degradation instead.
+	// if (millis() - bootTime >= 21600000UL) { ... }
 
 	// Publish status at most every 5 seconds (not every loop iteration)
 	if (millis() - lastStatusPublish >= 5000) {

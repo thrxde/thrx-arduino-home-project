@@ -2,6 +2,22 @@
 
 All notable changes to the thrx-arduino-home-project (electricity meter reader).
 
+## [1.1.4] — 2026-06-27
+
+**Fix: Remove 6h forced reset (was crashing 16U2 on restart)**
+
+v1.1.3 ran stable for exactly 6h00m02s — then died at the forced WDT reset.
+The reset triggers a rapid UART0 disconnect/reconnect that wedges the 16U2
+USB bridge. Since the serial flooding fix (v1.1.3) eliminates the original
+reason for the forced reset, it's no longer needed.
+
+### Removed
+- 6-hour forced `hardwareReset()` cycle (was introduced in v1.1.2 as workaround)
+
+### Expected behavior
+- Arduino now runs indefinitely until external reset or actual failure
+- Monitor `arduino/1/freeram` for degradation over multi-day uptimes
+
 ## [1.1.3] — 2026-06-27
 
 **Root cause fix: ATmega16U2 USB bridge lockup**
