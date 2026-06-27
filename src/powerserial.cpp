@@ -47,6 +47,7 @@ void PowerSerial::begin(const char *_name, HardwareSerial &_serial, const char *
 	serial = &_serial;
 	serial->begin(9600, SERIAL_7E1);
 	count = 0;
+	firstParseDiscarded = false;
 	mqttPrefix = _mqttPrefix;
 	waitTime = _waitTime;
 	lastupdate = 0;
@@ -165,6 +166,15 @@ void PowerSerial::parseMe() {
 			}
 			lineStart = &telegram[i + 1];
 		}
+	}
+
+	// Discard first parse result — serial port starts mid-telegram, first read is always garbled
+	if (!firstParseDiscarded) {
+		firstParseDiscarded = true;
+		Serial.print(name);
+		Serial.println(F(": first telegram discarded (startup)"));
+		count = 0;  // trigger another parse immediately
+		return;
 	}
 
 	// ATOMIC promotion — only after full successful parse

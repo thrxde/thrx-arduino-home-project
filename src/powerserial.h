@@ -46,6 +46,7 @@ class PowerSerial {
 	unsigned long waitTime;
 	unsigned long lastupdate;
 	int count;
+	bool firstParseDiscarded;  // skip first parse result (always garbled from mid-stream start)
 
 	HardwareSerial *serial;
 	const char *mqttPrefix;

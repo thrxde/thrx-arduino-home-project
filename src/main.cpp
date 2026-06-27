@@ -3,7 +3,7 @@
 
 
 char pName[] = "thrx home project - mqtt";
-char pVersion[] = "1.2.0";
+char pVersion[] = "1.2.1";
 byte mac[] = MAC_ADDRESS;     		//Ethernet shield mac address
 const char *ip = IP_ADDRESS;       		//Ethernet shield ip address
 const char *mqttServer = MQTT_SERVER_IP; //Openhab / Mosquitto  IP
