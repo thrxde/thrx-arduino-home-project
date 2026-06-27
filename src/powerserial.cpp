@@ -48,6 +48,8 @@ void PowerSerial::begin(const char *_name, HardwareSerial &_serial, const char *
 	serial->begin(9600, SERIAL_7E1);
 	count = 0;
 	firstParseDiscarded = false;
+	lastGoodBezug = 0;
+	lastGoodLiefer = 0;
 	mqttPrefix = _mqttPrefix;
 	waitTime = _waitTime;
 	lastupdate = 0;
@@ -277,20 +279,20 @@ void PowerSerial::transmitDataToMqtt(MqttHandler &mqttHandler) {
 
 	char topicBuf[48];
 
-	if (strlen(var_bezug) == 16) {
+	if (validateEnergyValue(var_bezug, lastGoodBezug)) {
 		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_BEZUG_KEY);
 		mqttHandler.publish(topicBuf, var_bezug);
 	} else if (debugMode) {
-		Serial.print(F("var_bezug invalid len="));
-		Serial.println(strlen(var_bezug));
+		Serial.print(F("var_bezug rejected: "));
+		Serial.println(var_bezug);
 	}
 
-	if (strlen(var_liefer) == 16) {
+	if (validateEnergyValue(var_liefer, lastGoodLiefer)) {
 		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_LIEFER_KEY);
 		mqttHandler.publish(topicBuf, var_liefer);
 	} else if (debugMode) {
-		Serial.print(F("var_liefer invalid len="));
-		Serial.println(strlen(var_liefer));
+		Serial.print(F("var_liefer rejected: "));
+		Serial.println(var_liefer);
 	}
 
 	if (validatePowerValue(var_momentan_L1)) {
@@ -340,6 +342,58 @@ int PowerSerial::validatePowerValue(const char *value) {
 		return true;
 	}
 	return false;
+}
+
+/**
+ * Validate energy counter value (kWh registers like bezug/liefer).
+ * Checks:
+ * - Length must be exactly 16 chars (format: "00040461.7966259")
+ * - Value must be monotonically increasing (meter can only go up)
+ * - Delta between consecutive reads must be < 0.1 kWh (max ~36kW for 5s interval)
+ * 
+ * On first read (lastGood == 0): accepts any value as baseline.
+ * Returns true if valid and updates lastGood.
+ */
+bool PowerSerial::validateEnergyValue(const char *value, float &lastGood) {
+	// Length check
+	if (strlen(value) != 16) return false;
+
+	// Parse to float
+	float current = atof(value);
+	if (current <= 0) return false;  // invalid parse or zero
+
+	// First reading — accept as baseline
+	if (lastGood == 0) {
+		lastGood = current;
+		return true;
+	}
+
+	// Monotonicity: must not go backward
+	if (current < lastGood) {
+		if (debugMode) {
+			Serial.print(F("  REJECT: backward "));
+			Serial.print(current, 2);
+			Serial.print(F(" < "));
+			Serial.println(lastGood, 2);
+		}
+		return false;
+	}
+
+	// Plausibility: delta must be < 0.1 kWh per reading interval (~5s)
+	// 0.1 kWh in 5s = 72 kW — impossibly high for any household
+	float delta = current - lastGood;
+	if (delta > 0.1) {
+		if (debugMode) {
+			Serial.print(F("  REJECT: jump "));
+			Serial.print(delta, 4);
+			Serial.println(F(" kWh"));
+		}
+		return false;
+	}
+
+	// Valid — update last known good
+	lastGood = current;
+	return true;
 }
 
 int PowerSerial::getCount() {

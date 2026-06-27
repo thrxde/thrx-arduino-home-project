@@ -43,6 +43,10 @@ class PowerSerial {
 	char var_momentan_L3[POWER_BUF_SIZE];
 	char var_momentan_L1_3[POWER_BUF_SIZE];
 
+	// Last known good values for monotonicity check
+	float lastGoodBezug;
+	float lastGoodLiefer;
+
 	unsigned long waitTime;
 	unsigned long lastupdate;
 	int count;
@@ -57,6 +61,7 @@ class PowerSerial {
 		int &new_count);
 	bool startsWith(const char *str, const char *prefix);
 	int validatePowerValue(const char *value);
+	bool validateEnergyValue(const char *value, float &lastGood);
 
 public:
 
