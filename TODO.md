@@ -1,37 +1,44 @@
-# TODO — Hard Lockup & Stability Fixes
+# TODO — Stability & Code Quality
 
-Reference: `ISSUE-hard-lockup-2026-06-25.md`
 Branch: `feature/watchdog-and-stability-fixes`
 
-## Deployed (on Arduino for testing)
+## Deployed
 
-- [x] **Fix 1** — Clear `MCUSR` before `wdt_disable()` in `setup()` (AVR132 compliance — hard lockup mitigation)
-- [x] **Fix 2** — Throttle MQTT status/uptime/reset publishes to 5s interval + eliminate `String(millis())` heap temps
-- [x] **Fix 3** — `long` -> `unsigned long` for `lastReconnectAttempt` and `now` (millis() type match)
-- [x] **Fix 4** — Replace `String` topic-building in `transmitDataToMqtt()` with `snprintf()` stack buffer
+- [x] **Fix 1** — MQTT debug switch + remove Serial0 flooding (v1.1.3)
+- [x] **Fix 1b** — Pass-by-reference for processLine() and validateValue() (v1.1.3)
+- [x] **Fix 3** — LED heartbeat on pin 13 (v1.1.3)
+- [x] **Fix 4** — F() macro for all string literals (v1.1.3)
+- [x] **Fix 5** — Publish free SRAM via MQTT (`arduino/1/freeram`) (v1.1.2)
+- [x] **Fix 6** — `Ethernet.maintain()` in loop() (v1.1.2)
+- [x] **Fix 9** — Static pattern strings (shared across instances) (v1.1.3)
+- [x] **Fix MCUSR** — Clear MCUSR before wdt_disable() per AVR132 (v1.1.1)
+- [x] **Fix callback** — Null terminator bug (v1.1.1)
+- [x] **Fix MqttHandler** — Pass by reference (v1.1.1)
+- [x] **WDT** — 8s hardware watchdog (v1.1.1)
+- [x] **Parse timeout** — 10s max for telegram read (v1.1.2)
+- [x] **6h reset** — Preventive reset with proper WDT method (v1.1.2)
+- [x] **Throttle status** — Publish uptime/status every 5s not every loop (v1.1.1)
+- [x] **millis() fix** — Use relative comparison for 6h reset (v1.1.3)
+- [x] **main.h cleanup** — Remove extern C, unused declarations (v1.1.3)
 
-## Next batch (medium priority — hardening)
+## Next (medium priority — deeper refactors)
 
-- [x] **Fix 5** — Publish free SRAM via MQTT (`arduino/1/freeram`) for runtime diagnostics
-- [x] **Fix 6** — Add `Ethernet.maintain()` in `loop()` to clean up stale W5100 sockets
-- [ ] **Fix 7** — Check W5100 hardware status after `Ethernet.begin()` + guard against IP parse failure
-- [ ] **Fix 8** — Pass-by-reference for `processLine()` and `validateValue()` (eliminate ~30 String copies/cycle)
+- [ ] **Fix 2** — Replace String class with char[] buffers in parseMe() (eliminates heap fragmentation entirely)
+- [ ] **Fix 7** — Check W5100 hardware status after Ethernet.begin()
+- [ ] **Fix 10** — Replace `String complete` telegram buffer with fixed char[1024]
+- [ ] **Fix 11** — Replace String member variables (var_bezug etc.) with char[]
+- [ ] **Fix 15** — Fix tryToRead counter (count consecutive nulls, not total)
+- [ ] **Fix 16** — Add Serial.availableForWrite() guard (safePrint wrapper)
 
-## Low priority (code quality / deeper refactors)
+## Low priority (nice-to-have)
 
-- [ ] **Fix 9** — Make pattern/key strings `static const` in `PowerSerial` (save ~56 bytes SRAM)
-- [ ] **Fix 10** — Replace `String complete` telegram buffer with fixed `char[640]` in `parseMe()`
-- [ ] **Fix 11** — Replace `String` member variables (`var_bezug` etc.) with `char[]`
-- [ ] **Fix 12** — Remove `extern "C"` block from `main.h` (cargo-culted from Sloeber template)
-- [ ] **Fix 13** — `boolean` -> `bool`, remove dead vars (`resetTime`, unused `waitTime`)
-- [ ] **Fix 14** — Remove `while (!Serial)` Leonardo guard from `PowerSerial::setup()`
-- [ ] **Fix 15** — Fix `tryToRead` counter to count consecutive nulls, not total
-- [ ] **Fix 16** — Reduce Serial debug verbosity (per-char prints block UART at 9600 baud)
-- [ ] **Fix 17** — Auto-increment patch version (`pVersion` in `main.cpp`) on every commit via git pre-commit hook
+- [ ] **Fix 12** — Remove dead variables (resetTime already done, waitTime in PowerSerial)
+- [ ] **Fix 13** — `boolean` → `bool` throughout
+- [ ] **Fix 17** — Auto-increment version via git hook
+- [ ] **PROGMEM** — Move static pattern strings to flash (after String removal)
 
-## Test status
+## Hardware TODO
 
-- **Deploy 1:** 2026-06-25 ~14:56 UTC+2 (Fixes 1-4) — soft lockup after ~1h14m, uptime stalled at 86398601
-- **Root cause:** parseMe() blocking 30s×2 exceeded MQTT keepalive 15s → broker disconnect → stale socket → freeze
-- **Deploy 2:** 2026-06-26 ~19:3x UTC+2 (Fixes 5,6 + parse timeout 30s→10s + reset interval 24h→6h + freeRam diagnostic)
-- **Watching for:** freeRam trend in HA (should stay >4000), MQTT stability, clean 6h reset cycle
+- [ ] Buy USB 2.0 hub with per-port power switching (Genesys Logic GL850G)
+- [ ] Move Arduino USB cable to hub on entry
+- [ ] Upgrade reset script: DTR → usbreset → uhubctl power cycle
