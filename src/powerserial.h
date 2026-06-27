@@ -10,10 +10,9 @@
 #include "mqtthandler.h"
 #include <avr/wdt.h>
 
-
 class PowerSerial {
 
-	// Pattern strings — static (shared across swu/solar instances)
+	// Pattern strings for OBIS code matching
 	static const char *PATTERN_BEZUG_KEY;
 	static const char *PATTERN_LIEFER_KEY;
 	static const char *PATTERN_MOMENTAN_255_L1;
@@ -31,14 +30,18 @@ class PowerSerial {
 	static const char *EXTERN_MOMENTAN_L3;
 	static const char *EXTERN_MOMENTAN_L1_3;
 
-	static const unsigned long PARSE_TIMEOUT_MS = 10000; // 10s max for telegram read
+	static const unsigned long PARSE_TIMEOUT_MS = 10000;
+	static const int TELEGRAM_BUF_SIZE = 1024;
+	static const int VALUE_BUF_SIZE = 17;  // max 16 chars + null
+	static const int POWER_BUF_SIZE = 11;  // max 10 chars + null
 
-	String var_bezug;
-	String var_liefer;
-	String var_momentan_L1;
-	String var_momentan_L2;
-	String var_momentan_L3;
-	String var_momentan_L1_3;
+	// Fixed-size buffers — NO heap allocation
+	char var_bezug[VALUE_BUF_SIZE];
+	char var_liefer[VALUE_BUF_SIZE];
+	char var_momentan_L1[POWER_BUF_SIZE];
+	char var_momentan_L2[POWER_BUF_SIZE];
+	char var_momentan_L3[POWER_BUF_SIZE];
+	char var_momentan_L1_3[POWER_BUF_SIZE];
 
 	unsigned long waitTime;
 	unsigned long lastupdate;
@@ -46,6 +49,13 @@ class PowerSerial {
 
 	HardwareSerial *serial;
 	const char *mqttPrefix;
+
+	void processLine(const char *line, int len,
+		char *new_bezug, char *new_liefer,
+		char *new_L1, char *new_L2, char *new_L3, char *new_L1_3,
+		int &new_count);
+	bool startsWith(const char *str, const char *prefix);
+	int validatePowerValue(const char *value);
 
 public:
 
@@ -56,7 +66,6 @@ public:
 	void begin(const char* _name, HardwareSerial& _serial, const char *_mqttPrefix, unsigned long _waitTime);
 	void parseMe();
 	void transmitDataToMqtt(MqttHandler &mqttHandler);
-	int validateValue(const String& value);
 	int getCount();
 };
 

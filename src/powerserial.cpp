@@ -32,6 +32,10 @@ const char *PowerSerial::EXTERN_MOMENTAN_L2 = "zaehler/strom/leistung/phase/2";
 const char *PowerSerial::EXTERN_MOMENTAN_L3 = "zaehler/strom/leistung/phase/3";
 const char *PowerSerial::EXTERN_MOMENTAN_L1_3 = "zaehler/strom/leistung/phasen";
 
+bool PowerSerial::startsWith(const char *str, const char *prefix) {
+	return strncmp(str, prefix, strlen(prefix)) == 0;
+}
+
 void PowerSerial::setup(unsigned long _waitTime) {
 	Serial.println(F("PowerSerial::setup()"));
 	swu.begin("SWU", Serial2, "swu", _waitTime);
@@ -46,6 +50,12 @@ void PowerSerial::begin(const char *_name, HardwareSerial &_serial, const char *
 	mqttPrefix = _mqttPrefix;
 	waitTime = _waitTime;
 	lastupdate = 0;
+	var_bezug[0] = '\0';
+	var_liefer[0] = '\0';
+	var_momentan_L1[0] = '\0';
+	var_momentan_L2[0] = '\0';
+	var_momentan_L3[0] = '\0';
+	var_momentan_L1_3[0] = '\0';
 	Serial.print(F("PowerSerial::begin(): "));
 	Serial.println(name);
 }
@@ -65,36 +75,38 @@ void PowerSerial::parseMe() {
 		Serial.println(count);
 	}
 
-	// Read telegram into local buffer — member vars UNTOUCHED until success
-	String complete = "";
+	// Fixed-size telegram buffer on STACK — zero heap allocation
+	char telegram[TELEGRAM_BUF_SIZE];
+	int telegramIdx = 0;
 	int append = 0;
 	int tryToRead = 1;
 	unsigned long parseStart = millis();
 	bool parseSuccess = false;
 
 	while (tryToRead > 0) {
-		// Feed watchdog during potentially long serial reads
 		wdt_reset();
 
-		// Timeout protection: abort if reading takes too long
 		if ((millis() - parseStart) > PARSE_TIMEOUT_MS) {
 			Serial.print(name);
-			Serial.println(F(": TIMEOUT - aborting telegram read"));
-			return;  // member vars unchanged — last good values preserved
+			Serial.println(F(": TIMEOUT"));
+			return;  // member vars unchanged
 		}
 
 		if (serial->available()) {
 			char c = serial->read();
 			if (c > 0) {
 				if (append == 1) {
-					complete.concat(c);
+					if (telegramIdx < TELEGRAM_BUF_SIZE - 1) {
+						telegram[telegramIdx++] = c;
+					}
 					if (c == '!') {  // end of telegram
+						telegram[telegramIdx] = '\0';
 						append = 0;
 						tryToRead = 0;
 						parseSuccess = true;
 					}
 				} else if (c == '/') {  // start of telegram
-					complete = "";
+					telegramIdx = 0;
 					append = 1;
 					if (debugMode) {
 						Serial.print(name);
@@ -116,90 +128,128 @@ void PowerSerial::parseMe() {
 
 	if (!parseSuccess) {
 		Serial.print(name);
-		Serial.println(F(": parse incomplete (no end marker)"));
+		Serial.println(F(": parse incomplete"));
 		return;  // member vars unchanged
 	}
 
-	// Summary (always printed — minimal output)
 	Serial.print(name);
 	Serial.print(F(": OK "));
-	Serial.print(complete.length());
+	Serial.print(telegramIdx);
 	Serial.println(F("B"));
 
 	if (debugMode) {
-		Serial.println(complete);
+		Serial.println(telegram);
 	}
 
-	// Parse into LOCAL temporaries — not into member vars
-	String new_bezug = "";
-	String new_liefer = "";
-	String new_L1 = "";
-	String new_L2 = "";
-	String new_L3 = "";
-	String new_L1_3 = "";
+	// Parse into LOCAL fixed-size buffers — no heap allocation
+	char new_bezug[VALUE_BUF_SIZE] = "";
+	char new_liefer[VALUE_BUF_SIZE] = "";
+	char new_L1[POWER_BUF_SIZE] = "";
+	char new_L2[POWER_BUF_SIZE] = "";
+	char new_L3[POWER_BUF_SIZE] = "";
+	char new_L1_3[POWER_BUF_SIZE] = "";
 	int new_count = 0;
 
-	int lastNewLinePosition = 0;
-	int newLinePosition = 0;
-	do {
-		lastNewLinePosition = newLinePosition;
-		newLinePosition = complete.indexOf('\n', newLinePosition + 1);
-		String segment;
-		if (newLinePosition != -1) {
-			segment = complete.substring(lastNewLinePosition + 1, newLinePosition + 1);
-		} else {
-			segment = complete.substring(lastNewLinePosition + 1, complete.length());
-			newLinePosition = -1;
+	// Process telegram line by line
+	char *lineStart = telegram;
+	for (int i = 0; i <= telegramIdx; i++) {
+		if (telegram[i] == '\n' || telegram[i] == '\0' || i == telegramIdx) {
+			int lineLen = &telegram[i] - lineStart;
+			// Trim \r\n from end
+			while (lineLen > 0 && (lineStart[lineLen - 1] == '\r' || lineStart[lineLen - 1] == '\n')) {
+				lineLen--;
+			}
+			if (lineLen > 0) {
+				processLine(lineStart, lineLen, new_bezug, new_liefer,
+					new_L1, new_L2, new_L3, new_L1_3, new_count);
+			}
+			lineStart = &telegram[i + 1];
 		}
+	}
 
-		// Process line into local vars
-		int end = segment.length();
-		if (end > 0 && segment.charAt(end - 1) == '\n') end--;
-		if (end > 0 && segment.charAt(end - 1) == '\r') end--;
-		String trimmed = segment.substring(0, end);
+	// ATOMIC promotion — only after full successful parse
+	strncpy(var_bezug, new_bezug, VALUE_BUF_SIZE - 1);
+	var_bezug[VALUE_BUF_SIZE - 1] = '\0';
+	strncpy(var_liefer, new_liefer, VALUE_BUF_SIZE - 1);
+	var_liefer[VALUE_BUF_SIZE - 1] = '\0';
+	strncpy(var_momentan_L1, new_L1, POWER_BUF_SIZE - 1);
+	var_momentan_L1[POWER_BUF_SIZE - 1] = '\0';
+	strncpy(var_momentan_L2, new_L2, POWER_BUF_SIZE - 1);
+	var_momentan_L2[POWER_BUF_SIZE - 1] = '\0';
+	strncpy(var_momentan_L3, new_L3, POWER_BUF_SIZE - 1);
+	var_momentan_L3[POWER_BUF_SIZE - 1] = '\0';
+	strncpy(var_momentan_L1_3, new_L1_3, POWER_BUF_SIZE - 1);
+	var_momentan_L1_3[POWER_BUF_SIZE - 1] = '\0';
+	count = -1;
+}
 
-		if (debugMode) Serial.println(trimmed);
+void PowerSerial::processLine(const char *line, int len,
+	char *new_bezug, char *new_liefer,
+	char *new_L1, char *new_L2, char *new_L3, char *new_L1_3,
+	int &new_count) {
 
-		if (trimmed.indexOf('(') > 0) {
-			String key = trimmed.substring(0, trimmed.indexOf('('));
-			String value = "";
-			if (trimmed.indexOf('*', trimmed.indexOf('(')) > 0) {
-				value = trimmed.substring(trimmed.indexOf('(') + 1, trimmed.lastIndexOf('*'));
-			} else {
-				value = trimmed.substring(trimmed.indexOf('(') + 1, trimmed.lastIndexOf(')'));
-			}
+	// Find '(' to split key and value
+	int parenPos = -1;
+	for (int i = 0; i < len; i++) {
+		if (line[i] == '(') { parenPos = i; break; }
+	}
+	if (parenPos <= 0) return;  // no key(value) structure
 
-			if (debugMode) {
-				Serial.print(key);
-				Serial.print(F(" "));
-				Serial.println(value);
-			}
+	// Extract key (everything before '(')
+	char key[32];
+	int keyLen = (parenPos < 31) ? parenPos : 31;
+	strncpy(key, line, keyLen);
+	key[keyLen] = '\0';
 
-			if (key.startsWith(PATTERN_BEZUG_KEY)) {
-				new_bezug = value;
-			} else if (key.startsWith(PATTERN_LIEFER_KEY)) {
-				new_liefer = value;
-			} else if (key.startsWith(PATTERN_MOMENTAN_255_L1) || key.startsWith(PATTERN_MOMENTAN_0_L1)) {
-				new_L1 = value;
-			} else if (key.startsWith(PATTERN_MOMENTAN_255_L2) || key.startsWith(PATTERN_MOMENTAN_0_L2)) {
-				new_L2 = value;
-			} else if (key.startsWith(PATTERN_MOMENTAN_255_L3) || key.startsWith(PATTERN_MOMENTAN_0_L3)) {
-				new_L3 = value;
-			} else if (key.startsWith(PATTERN_MOMENTAN_255_L1_3) || key.startsWith(PATTERN_MOMENTAN_0_L1_3)) {
-				new_L1_3 = value;
-			}
-			new_count++;
+	// Extract value (between '(' and '*' or ')')
+	int valueStart = parenPos + 1;
+	int valueEnd = -1;
+
+	// Find '*' after '(' (unit separator, e.g., "00040461.79*kWh")
+	for (int i = valueStart; i < len; i++) {
+		if (line[i] == '*') { valueEnd = i; break; }
+	}
+	// If no '*', find last ')'
+	if (valueEnd < 0) {
+		for (int i = len - 1; i >= valueStart; i--) {
+			if (line[i] == ')') { valueEnd = i; break; }
 		}
-	} while (newLinePosition >= 0);
+	}
+	if (valueEnd < 0) return;  // malformed line
 
-	// ATOMIC promotion — only update member vars after full successful parse
-	var_bezug = new_bezug;
-	var_liefer = new_liefer;
-	var_momentan_L1 = new_L1;
-	var_momentan_L2 = new_L2;
-	var_momentan_L3 = new_L3;
-	var_momentan_L1_3 = new_L1_3;
-	count = -1;  // mark as ready for transmit
+	int valueLen = valueEnd - valueStart;
+	char value[VALUE_BUF_SIZE];
+	if (valueLen >= VALUE_BUF_SIZE) valueLen = VALUE_BUF_SIZE - 1;
+	strncpy(value, line + valueStart, valueLen);
+	value[valueLen] = '\0';
+
+	if (debugMode) {
+		Serial.print(key);
+		Serial.print(F(" "));
+		Serial.println(value);
+	}
+
+	// Match OBIS key to field — using strncmp via startsWith()
+	if (startsWith(key, PATTERN_BEZUG_KEY)) {
+		strncpy(new_bezug, value, VALUE_BUF_SIZE - 1);
+		new_bezug[VALUE_BUF_SIZE - 1] = '\0';
+	} else if (startsWith(key, PATTERN_LIEFER_KEY)) {
+		strncpy(new_liefer, value, VALUE_BUF_SIZE - 1);
+		new_liefer[VALUE_BUF_SIZE - 1] = '\0';
+	} else if (startsWith(key, PATTERN_MOMENTAN_255_L1) || startsWith(key, PATTERN_MOMENTAN_0_L1)) {
+		strncpy(new_L1, value, POWER_BUF_SIZE - 1);
+		new_L1[POWER_BUF_SIZE - 1] = '\0';
+	} else if (startsWith(key, PATTERN_MOMENTAN_255_L2) || startsWith(key, PATTERN_MOMENTAN_0_L2)) {
+		strncpy(new_L2, value, POWER_BUF_SIZE - 1);
+		new_L2[POWER_BUF_SIZE - 1] = '\0';
+	} else if (startsWith(key, PATTERN_MOMENTAN_255_L3) || startsWith(key, PATTERN_MOMENTAN_0_L3)) {
+		strncpy(new_L3, value, POWER_BUF_SIZE - 1);
+		new_L3[POWER_BUF_SIZE - 1] = '\0';
+	} else if (startsWith(key, PATTERN_MOMENTAN_255_L1_3) || startsWith(key, PATTERN_MOMENTAN_0_L1_3)) {
+		strncpy(new_L1_3, value, POWER_BUF_SIZE - 1);
+		new_L1_3[POWER_BUF_SIZE - 1] = '\0';
+	}
+	new_count++;
 }
 
 void PowerSerial::transmitDataToMqtt(MqttHandler &mqttHandler) {
@@ -216,47 +266,53 @@ void PowerSerial::transmitDataToMqtt(MqttHandler &mqttHandler) {
 	}
 
 	char topicBuf[48];
-	if (var_bezug.length() > 0 && var_bezug.length() == 16) {
+
+	if (strlen(var_bezug) == 16) {
 		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_BEZUG_KEY);
-		mqttHandler.publish(topicBuf, var_bezug.c_str());
+		mqttHandler.publish(topicBuf, var_bezug);
 	} else if (debugMode) {
-		Serial.print(F("var_bezug invalid: "));
-		Serial.println(var_bezug.length());
+		Serial.print(F("var_bezug invalid len="));
+		Serial.println(strlen(var_bezug));
 	}
-	if (var_liefer.length() > 0 && var_liefer.length() == 16) {
+
+	if (strlen(var_liefer) == 16) {
 		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_LIEFER_KEY);
-		mqttHandler.publish(topicBuf, var_liefer.c_str());
+		mqttHandler.publish(topicBuf, var_liefer);
 	} else if (debugMode) {
-		Serial.print(F("var_liefer invalid: "));
-		Serial.println(var_liefer.length());
+		Serial.print(F("var_liefer invalid len="));
+		Serial.println(strlen(var_liefer));
 	}
-	if (validateValue(var_momentan_L1)) {
+
+	if (validatePowerValue(var_momentan_L1)) {
 		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_MOMENTAN_L1);
-		mqttHandler.publish(topicBuf, var_momentan_L1.c_str());
+		mqttHandler.publish(topicBuf, var_momentan_L1);
 	} else if (debugMode) {
-		Serial.print(F("var_L1 invalid: "));
-		Serial.println(var_momentan_L1.length());
+		Serial.print(F("var_L1 invalid len="));
+		Serial.println(strlen(var_momentan_L1));
 	}
-	if (validateValue(var_momentan_L2)) {
+
+	if (validatePowerValue(var_momentan_L2)) {
 		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_MOMENTAN_L2);
-		mqttHandler.publish(topicBuf, var_momentan_L2.c_str());
+		mqttHandler.publish(topicBuf, var_momentan_L2);
 	} else if (debugMode) {
-		Serial.print(F("var_L2 invalid: "));
-		Serial.println(var_momentan_L2.length());
+		Serial.print(F("var_L2 invalid len="));
+		Serial.println(strlen(var_momentan_L2));
 	}
-	if (validateValue(var_momentan_L3)) {
+
+	if (validatePowerValue(var_momentan_L3)) {
 		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_MOMENTAN_L3);
-		mqttHandler.publish(topicBuf, var_momentan_L3.c_str());
+		mqttHandler.publish(topicBuf, var_momentan_L3);
 	} else if (debugMode) {
-		Serial.print(F("var_L3 invalid: "));
-		Serial.println(var_momentan_L3.length());
+		Serial.print(F("var_L3 invalid len="));
+		Serial.println(strlen(var_momentan_L3));
 	}
-	if (validateValue(var_momentan_L1_3)) {
+
+	if (validatePowerValue(var_momentan_L1_3)) {
 		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_MOMENTAN_L1_3);
-		mqttHandler.publish(topicBuf, var_momentan_L1_3.c_str());
+		mqttHandler.publish(topicBuf, var_momentan_L1_3);
 	} else if (debugMode) {
-		Serial.print(F("var_L1_3 invalid: "));
-		Serial.println(var_momentan_L1_3.length());
+		Serial.print(F("var_L1_3 invalid len="));
+		Serial.println(strlen(var_momentan_L1_3));
 	}
 
 	if (debugMode) {
@@ -266,10 +322,11 @@ void PowerSerial::transmitDataToMqtt(MqttHandler &mqttHandler) {
 	count = 0;
 }
 
-int PowerSerial::validateValue(const String& value) {
-	if (value.length() == 9) {
+int PowerSerial::validatePowerValue(const char *value) {
+	int len = strlen(value);
+	if (len == 9) {
 		return true;
-	} else if (value.length() == 10 && value.startsWith("-")) {
+	} else if (len == 10 && value[0] == '-') {
 		return true;
 	}
 	return false;
