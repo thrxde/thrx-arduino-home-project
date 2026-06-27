@@ -3,7 +3,7 @@
 
 
 char pName[] = "thrx home project - mqtt";
-char pVersion[] = "1.1.2";
+char pVersion[] = "1.1.3";
 byte mac[] = MAC_ADDRESS;     		//Ethernet shield mac address
 const char *ip = IP_ADDRESS;       		//Ethernet shield ip address
 const char *mqttServer = MQTT_SERVER_IP; //Openhab / Mosquitto  IP
@@ -15,10 +15,14 @@ char topicUptime[]     = "arduino/1/uptime";
 char topicCommand[]    = "arduino/1/command";
 char topicVersion[]    = "arduino/1/version";
 char topicFreeram[]    = "arduino/1/freeram";
+char topicDebug[]      = "arduino/1/debug";
 unsigned long waitTime = 5000; // max mqtt transmit rate 5sec
-unsigned long resetTime = 0;
 unsigned long lastReconnectAttempt = 0;
 unsigned long lastStatusPublish = 0;
+
+// Debug mode: toggle via MQTT command "debug on" / "debug off"
+// Default OFF — prevents Serial0 flooding that crashes ATmega16U2 USB bridge
+volatile bool debugMode = false;
 
 EthernetClient ethClient;
 PubSubClient mqttClient(mqttServer, 1883, callback, ethClient);
@@ -38,7 +42,7 @@ int freeRam() {
  * inconsistent state.
  */
 void hardwareReset() {
-	Serial.println(">>> Hardware reset via WDT");
+	Serial.println(F(">>> Hardware reset via WDT"));
 	Serial.flush();
 	wdt_enable(WDTO_15MS);
 	while (1) {} // wait for watchdog to fire
@@ -47,29 +51,43 @@ void hardwareReset() {
 void callback(char* topic, byte* payload, unsigned int length) {
 	// handle message arrived
 	char message_buff[100];
-	
-	Serial.print("Message arrived: topic: ");
-	Serial.println(topic);
-	Serial.print("Length: ");
-	Serial.println(length);
-	
+
+	if (debugMode) {
+		Serial.print(F("Message arrived: topic: "));
+		Serial.println(topic);
+		Serial.print(F("Length: "));
+		Serial.println(length);
+	}
+
 	// Safely copy payload to buffer (max 99 chars)
 	unsigned int copyLen = (length < 99) ? length : 99;
 	for (unsigned int i = 0; i < copyLen; i++) {
 		message_buff[i] = payload[i];
 	}
 	message_buff[copyLen] = '\0';
-	
-	Serial.print("Payload: ");
-	Serial.println(message_buff);
 
-	// Handle reboot command
-	if (strcmp(topic, topicCommand) == 0 && strcmp(message_buff, "reboot") == 0) {
-		Serial.println("Reboot command received via MQTT");
-		mqttClient.publish(topicStatus, "rebooting");
-		mqttClient.disconnect();
-		delay(100);
-		hardwareReset();
+	if (debugMode) {
+		Serial.print(F("Payload: "));
+		Serial.println(message_buff);
+	}
+
+	// Handle commands
+	if (strcmp(topic, topicCommand) == 0) {
+		if (strcmp(message_buff, "reboot") == 0) {
+			Serial.println(F("Reboot command received via MQTT"));
+			mqttClient.publish(topicStatus, "rebooting");
+			mqttClient.disconnect();
+			delay(100);
+			hardwareReset();
+		} else if (strcmp(message_buff, "debug on") == 0) {
+			debugMode = true;
+			mqttClient.publish(topicDebug, "on");
+			Serial.println(F("Debug mode ON"));
+		} else if (strcmp(message_buff, "debug off") == 0) {
+			debugMode = false;
+			mqttClient.publish(topicDebug, "off");
+			Serial.println(F("Debug mode OFF"));
+		}
 	}
 }
 
@@ -80,86 +98,78 @@ void setup() {
 	MCUSR = 0;
 	wdt_disable();
 
+	// LED heartbeat — confirms ATmega2560 is alive even if USB bridge is wedged
+	pinMode(13, OUTPUT);
+
 	delay(1000);
 	Serial.begin(9600);
 	delay(1000);
 	Serial.println(pName);
-	Serial.print("Version: ");
+	Serial.print(F("Version: "));
 	Serial.println(pVersion);
 	delay(1000);
 
-    IPAddress apip;
-	if (apip.fromString(ip)) { // try to parse into the IPAddress
-    	Serial.print("Local IP address: ");
-		Serial.println(apip); // print the parsed IPAddress 
+	IPAddress apip;
+	if (apip.fromString(ip)) {
+		Serial.print(F("Local IP address: "));
+		Serial.println(apip);
 	} else {
-		Serial.println("UnParsable IP");
+		Serial.println(F("UnParsable IP"));
 	}
-   	Ethernet.begin(mac, apip); //configure manually
+	Ethernet.begin(mac, apip);
 
 	delay(1000);
 	Serial.println();
-   	Serial.print("Local IP address: ");
+	Serial.print(F("Local IP address: "));
 	Serial.println(Ethernet.localIP());
-   	Serial.print("DNS IP address: ");
+	Serial.print(F("DNS IP address: "));
 	Serial.println(Ethernet.dnsServerIP());
-   	Serial.print("Gateway IP address: ");
+	Serial.print(F("Gateway IP address: "));
 	Serial.println(Ethernet.gatewayIP());
- 	Serial.println();
+	Serial.println();
 
-  	connectMqttServer();
+	connectMqttServer();
 
 	PowerSerial::setup(waitTime);
 
 	// Enable watchdog with 8 second timeout
 	// If loop() hangs for >8s, WDT triggers a full hardware reset
 	wdt_enable(WDTO_8S);
-	Serial.println("Watchdog enabled (8s timeout)");
+	Serial.println(F("Watchdog enabled (8s timeout)"));
 }
 
 bool connectMqttServer() {
-   // Note - the default maximum packet size is 128 bytes. If the
-    // combined length of clientId, username and password exceed this,
-    // you will need to increase the value of MQTT_MAX_PACKET_SIZE in
-    // PubSubClient.h
- 	// Establishing the connection to MQTT server if it is not open.
 	if (!mqttClient.connected()) {
-	    Serial.println("MQTT not connected");
+		if (debugMode) Serial.println(F("MQTT not connected"));
 		unsigned long now = millis();
-		Serial.print("MQTT not connected now: ");
-		Serial.println(now);
-    	if (now - lastReconnectAttempt > 5000) {
-     	    Serial.println("MQTT try reconnect");
+		if (now - lastReconnectAttempt > 5000) {
+			if (debugMode) Serial.println(F("MQTT try reconnect"));
 			lastReconnectAttempt = now;
-			// Attempt to reconnect
 			if (reconnect()) {
-         	    Serial.println("MQTT reconnect successful");
+				Serial.println(F("MQTT reconnect successful"));
 				lastReconnectAttempt = 0;
 			}
 		}
-		
 	} else {
-   	    Serial.println("MQTT loop");
 		mqttClient.loop();
 	}
 	return mqttClient.connected();
 }
 
 boolean reconnect() {
- 	// connect (clientID, username, password, willTopic, willQoS, willRetain, willMessage)
+	// connect (clientID, username, password, willTopic, willQoS, willRetain, willMessage)
 	if (mqttClient.connect(mqttClientName, MQTT_USER, MQTT_PASS, topicLastWill, 1, false, "disconnected")) {
 		mqttClient.publish(topicLastWill, "connected");
 		mqttClient.publish(topicVersion, pVersion);
+		mqttClient.publish(topicDebug, debugMode ? "on" : "off");
 		char uptimeBuf[12];
 		ltoa(millis(), uptimeBuf, 10);
 		mqttClient.publish(topicUptime, uptimeBuf);
-		// Subscribe to messages with the specified topic
 		mqttClient.subscribe(topicCommand);
-		Serial.print("MQTT subscribed to ");
+		Serial.print(F("MQTT subscribed to "));
 		Serial.println(topicCommand);
 	} else {
-		Serial.print("Error connection to MQTT using:");
-		Serial.println();
+		Serial.println(F("MQTT connection failed"));
 	}
 	return mqttClient.connected();
 }
@@ -169,20 +179,30 @@ void loop() {
 	// Feed the watchdog - must be called within 8 seconds
 	wdt_reset();
 
+	// LED heartbeat — blinks every 1s to show ATmega2560 is alive
+	static unsigned long lastBlink = 0;
+	if (millis() - lastBlink > 1000) {
+		lastBlink = millis();
+		digitalWrite(13, !digitalRead(13));
+	}
+
 	// Maintain Ethernet stack — cleans up stale W5100 sockets
 	Ethernet.maintain();
 
 	if (!connectMqttServer()) {
-   	    Serial.println("MQTT not connected to server");
+		if (debugMode) Serial.println(F("MQTT not connected to server"));
 		return;
 	}
-	if (millis() >= 21600000) { // reset every 6 hours
-		Serial.println("Resetting Arduino - 6h uptime reached");
+
+	// Preventive reset every 6 hours (avoids long-term resource exhaustion)
+	static unsigned long bootTime = millis();
+	if (millis() - bootTime >= 21600000UL) {
+		Serial.println(F("Resetting Arduino - 6h uptime reached"));
 		mqttClient.publish(topicReset, "true");
 		mqttClient.publish(topicStatus, "offline");
 		mqttClient.disconnect();
 		delay(100);
-		hardwareReset(); // proper hardware reset via WDT
+		hardwareReset();
 	}
 
 	// Publish status at most every 5 seconds (not every loop iteration)
@@ -196,24 +216,27 @@ void loop() {
 		mqttClient.publish(topicFreeram, ramBuf);
 		mqttClient.publish(topicReset, "false");
 		mqttClient.publish(topicStatus, "online");
+
+		// Debug: print waiting status only every 5s, not every loop
+		if (debugMode) {
+			if (PowerSerial::swu.getCount() >= 0)
+				Serial.println(F("SWU: waiting for telegram"));
+			if (PowerSerial::solar.getCount() >= 0)
+				Serial.println(F("Solar: waiting for telegram"));
+		}
 	}
 
 	if (PowerSerial::swu.getCount() >= 0){
-    	PowerSerial::swu.parseMe();
+		PowerSerial::swu.parseMe();
 	}
-    if (PowerSerial::solar.getCount() >= 0){
-    	PowerSerial::solar.parseMe();
+	if (PowerSerial::solar.getCount() >= 0){
+		PowerSerial::solar.parseMe();
 	}
 
 	if (PowerSerial::swu.getCount() < 0) {
 		PowerSerial::swu.transmitDataToMqtt(mqttHandler);
-	} else {
-		Serial.println("SWU: Powerserial has no result .... waiting: ");
 	}
 	if (PowerSerial::solar.getCount() < 0) {
 		PowerSerial::solar.transmitDataToMqtt(mqttHandler);
-	} else {
-		Serial.println("Solar: Powerserial has no result .... waiting: ");
 	}
-
 }
