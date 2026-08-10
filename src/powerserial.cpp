@@ -1,274 +1,433 @@
 #include "powerserial.h"
 
+// Debug mode flag — defined in main.cpp
+extern volatile bool debugMode;
+
+// MQTT topic structure (prefix is "swu" or "solar"):
+// <prefix>/zaehler/strom/stand/bezug
+// <prefix>/zaehler/strom/stand/lieferung
+// <prefix>/zaehler/strom/leistung/phase/1
+// <prefix>/zaehler/strom/leistung/phase/2
+// <prefix>/zaehler/strom/leistung/phase/3
+// <prefix>/zaehler/strom/leistung/phasen
+
 PowerSerial PowerSerial::swu;
 PowerSerial PowerSerial::solar;
 
-// swu/zaehler/strom/stand/bezug
-// swu/zaehler/strom/stand/lieferung
-// swu/zaehler/strom/leistung/phase/1
-// swu/zaehler/strom/leistung/phase/2
-// swu/zaehler/strom/leistung/phase/3
-// swu/zaehler/strom/leistung/phasen
+// Static pattern string definitions (shared across instances)
+const char *PowerSerial::PATTERN_BEZUG_KEY = "1-0:1.8.0*255";
+const char *PowerSerial::PATTERN_LIEFER_KEY = "1-0:2.8.0*255";
+const char *PowerSerial::PATTERN_MOMENTAN_255_L1 = "1-0:21.7.255*255";
+const char *PowerSerial::PATTERN_MOMENTAN_255_L2 = "1-0:41.7.255*255";
+const char *PowerSerial::PATTERN_MOMENTAN_255_L3 = "1-0:61.7.255*255";
+const char *PowerSerial::PATTERN_MOMENTAN_255_L1_3 = "1-0:1.7.255*255";
+const char *PowerSerial::PATTERN_MOMENTAN_0_L1 = "1-0:21.7.0*255";
+const char *PowerSerial::PATTERN_MOMENTAN_0_L2 = "1-0:41.7.0*255";
+const char *PowerSerial::PATTERN_MOMENTAN_0_L3 = "1-0:61.7.0*255";
+const char *PowerSerial::PATTERN_MOMENTAN_0_L1_3 = "1-0:1.7.0*255";
+const char *PowerSerial::EXTERN_BEZUG_KEY = "zaehler/strom/stand/bezug";
+const char *PowerSerial::EXTERN_LIEFER_KEY = "zaehler/strom/stand/lieferung";
+const char *PowerSerial::EXTERN_MOMENTAN_L1 = "zaehler/strom/leistung/phase/1";
+const char *PowerSerial::EXTERN_MOMENTAN_L2 = "zaehler/strom/leistung/phase/2";
+const char *PowerSerial::EXTERN_MOMENTAN_L3 = "zaehler/strom/leistung/phase/3";
+const char *PowerSerial::EXTERN_MOMENTAN_L1_3 = "zaehler/strom/leistung/phasen";
+
+bool PowerSerial::startsWith(const char *str, const char *prefix) {
+	return strncmp(str, prefix, strlen(prefix)) == 0;
+}
 
 void PowerSerial::setup(unsigned long _waitTime) {
-//	Serial.begin(9600);
-	while (!Serial) {
-		; // wait for serial port to connect. Needed for Leonardo only
-	}
-	Serial.println("PowerSerial::setup()");
+	Serial.println(F("PowerSerial::setup()"));
 	swu.begin("SWU", Serial2, "swu", _waitTime);
 	solar.begin("Solar", Serial3, "solar", _waitTime);
 }
 
-void PowerSerial::begin(const char *_name, HardwareSerial &_serial,	const char *_mqttPrefix, unsigned long _waitTime) {
+void PowerSerial::begin(const char *_name, HardwareSerial &_serial, const char *_mqttPrefix, unsigned long _waitTime) {
 	name = _name;
 	serial = &_serial;
 	serial->begin(9600, SERIAL_7E1);
 	count = 0;
-	mqttPrefix=_mqttPrefix;
-	waitTime=_waitTime;
+	discardCount = 0;
+	lastGoodBezug = 0;
+	lastGoodLiefer = 0;
+	rejectCountBezug = 0;
+	rejectCountLiefer = 0;
+	mqttPrefix = _mqttPrefix;
+	waitTime = _waitTime;
 	lastupdate = 0;
-	Serial.println("PowerSerial::begin():");
+	var_bezug[0] = '\0';
+	var_liefer[0] = '\0';
+	var_momentan_L1[0] = '\0';
+	var_momentan_L2[0] = '\0';
+	var_momentan_L3[0] = '\0';
+	var_momentan_L1_3[0] = '\0';
+	Serial.print(F("PowerSerial::begin(): "));
+	Serial.println(name);
 }
 
 void PowerSerial::parseMe() {
-	if (count < 0){
-    	Serial.println();
-		Serial.print(name);
-		Serial.print(":PowerSerial::parseMe():  Waiting ... count=");
-   	    Serial.println(count);
+	if (count < 0) {
+		if (debugMode) {
+			Serial.print(name);
+			Serial.println(F(": parseMe skipped (count<0)"));
+		}
 		return;
-	} else {
-    	Serial.println();
-		Serial.print(name); 		
-		Serial.print(":PowerSerial::parseMe(): count=");
-	    Serial.println(count);
 	}
 
-	var_bezug = "";
-	var_liefer = "";
-	var_momentan_L1 = "";
-	var_momentan_L2 = "";
-	var_momentan_L3 = "";
-	var_momentan_L1_3 = "";
+	if (debugMode) {
+		Serial.print(name);
+		Serial.print(F(": parseMe count="));
+		Serial.println(count);
+	}
 
-	String complete = "";
+	// Fixed-size telegram buffer on STACK — zero heap allocation
+	char telegram[TELEGRAM_BUF_SIZE];
+	int telegramIdx = 0;
 	int append = 0;
 	int tryToRead = 1;
-	while(tryToRead > 0){
-		if (serial->available()){
+	unsigned long parseStart = millis();
+	bool parseSuccess = false;
+
+	while (tryToRead > 0) {
+		wdt_reset();
+
+		if ((millis() - parseStart) > PARSE_TIMEOUT_MS) {
+			Serial.print(name);
+			Serial.println(F(": TIMEOUT"));
+			return;  // member vars unchanged
+		}
+
+		if (serial->available()) {
 			char c = serial->read();
-			if ( c > 0) {
+			if (c > 0) {
 				if (append == 1) {
-					//Serial.print(c); 
-					complete.concat(c);
-					if (c=='!') {	// ende telegramm
+					if (telegramIdx < TELEGRAM_BUF_SIZE - 1) {
+						telegram[telegramIdx++] = c;
+					}
+					if (c == '!') {  // end of telegram
+						telegram[telegramIdx] = '\0';
 						append = 0;
 						tryToRead = 0;
-						Serial.println();
-						Serial.print(name); 		
-						Serial.println(":PowerSerial:: end telegram");
+						parseSuccess = true;
 					}
-				} else 	if (c=='/') { // start telegramm
-					Serial.println();
-					Serial.print(name); 		
-					Serial.println(":PowerSerial:: start telegram");
-					complete = "";
+				} else if (c == '/') {  // start of telegram
+					telegramIdx = 0;
 					append = 1;
-				} else {
-					Serial.print("u"); 
-				}	
-
+					if (debugMode) {
+						Serial.print(name);
+						Serial.println(F(": start telegram"));
+					}
+				}
 			} else {
-				Serial.print("x"); 
 				tryToRead++;
-				if (tryToRead >= 500){
-					Serial.print(name); 		
-					Serial.print(":PowerSerial:: ERROR no data to read, retry count: ");
-					Serial.println(tryToRead);
-					return;
+				if (tryToRead >= 500) {
+					Serial.print(name);
+					Serial.println(F(": ERROR no data, retry limit"));
+					return;  // member vars unchanged
 				}
 			}
 		} else {
-			Serial.print("."); 
+			delay(1);
 		}
 	}
-	Serial.println();
-	Serial.print(name);
-	Serial.print(":PowerSerial GO ...");
-	Serial.println();
-	Serial.println(complete);
-	Serial.println();
 
-	Serial.print(name); 		
-	Serial.println(":PowerSerial:: processLine:");
-	Serial.println();
-	int lastNewLinePosition = 0;
-	int newLinePosition = 0;
-	do {
-		lastNewLinePosition = newLinePosition;
-		newLinePosition = complete.indexOf('\n',newLinePosition+1);
-		if (newLinePosition != -1) {
-			processLine(complete.substring(lastNewLinePosition+1, newLinePosition+1));
-		} else { // here after the last comma is found
-			processLine(complete.substring(lastNewLinePosition+1, complete.length()));
-			newLinePosition = -1;
-		}
-	} while (newLinePosition >= 0);
- 
-}
-
-void PowerSerial::processLine(String line) {
-	Serial.print(line);
-	if (line.endsWith("\n")){
-		line = line.substring(0,line.indexOf('\n'));
-	}
-	if (line.endsWith("\r")){
-		line = line.substring(0,line.indexOf('\r'));
-	}
-	if (line.indexOf('/') >= 0){
-		Serial.println("/ found -> start it");
-		count = 0;
-	} else if (line.indexOf('!') >= 0){
-		Serial.println("! found -> set count to -1");
-		count = -1;
-	} else if (line.indexOf('(') > 0){
-		String key = line.substring(0, line.indexOf('('));
- 	    Serial.print(key);
-    	Serial.print(" ");
-		String value = "";
-		if (line.indexOf('*',line.indexOf('(')) > 0){
-			value = line.substring(line.indexOf('(')+1, line.lastIndexOf('*'));
-		} else {
-			value = line.substring(line.indexOf('(')+1, line.lastIndexOf(')'));
-		}    
-	    Serial.println(value);
-		if (key.startsWith(PATTERN_BEZUG_KEY)){
-			var_bezug = value; 
-		} else if (key.startsWith(PATTERN_LIEFER_KEY)){
-			var_liefer = value; 
-		} else if (key.startsWith(PATTERN_MOMENTAN_255_L1) || key.startsWith(PATTERN_MOMENTAN_0_L1)){
-			var_momentan_L1 = value;
-		} else if (key.startsWith(PATTERN_MOMENTAN_255_L2) || key.startsWith(PATTERN_MOMENTAN_0_L2)){
-			var_momentan_L2=value;
-		} else if (key.startsWith(PATTERN_MOMENTAN_255_L3) || key.startsWith(PATTERN_MOMENTAN_0_L3)){
-			var_momentan_L3=value;
-		} else if (key.startsWith(PATTERN_MOMENTAN_255_L1_3) || key.startsWith(PATTERN_MOMENTAN_0_L1_3)){
-			var_momentan_L1_3=value;
-		} else if (key.startsWith("1-0:0.0.0*255")){
-//			Serial.println("3 NOT MAPPED:  "+line);
-		} else {
-//			Serial.println("2 NOT MAPPED:  "+line);
-		}
-		count++;
-	} else {
-		Serial.println("1 UNKNOWN Line:  "+line);
-	}
-
-}
-
-void PowerSerial::transmitDataToMqtt(MqttHandler mqttHandler) {
-	int currentWaitTime = millis() - lastupdate;
-	if (currentWaitTime < 5000) {
-		//Serial.print(".");
-	} else {
-    	Serial.println();
-    	Serial.print(name);
-		Serial.println(":PowerSerial::transmit Every 5 seconds (start)");
-		lastupdate = millis();
-
+	if (!parseSuccess) {
 		Serial.print(name);
-		Serial.println(":PowerSerial::Publish to MQTT");
-		if (var_bezug.length() > 0  && var_bezug.length() == 16)  { 
-			mqttHandler.publish(
-				((String)mqttPrefix + "/" + (String)EXTERN_BEZUG_KEY).c_str(),
-				var_bezug.c_str()
-			);
-		} else {
-			Serial.print("var_bezug -- ");
-			Serial.print(var_bezug);
-			Serial.print(" -- ");
-			Serial.println(var_bezug.length());
-		}
-		if (var_liefer.length() > 0 && var_liefer.length() == 16) {
-			mqttHandler.publish(
-				((String)mqttPrefix + "/" + (String)EXTERN_LIEFER_KEY).c_str(),
-				var_liefer.c_str()
-			);
-		} else {
-			Serial.print("var_liefer -- ");
-			Serial.print(var_liefer);
-			Serial.print(" -- ");
-			Serial.println(var_liefer.length());
-		}
-		if (validateValue(var_momentan_L1))  {
-			mqttHandler.publish(
-				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L1).c_str(),
-				var_momentan_L1.c_str()
-			);
-		} else {
-			Serial.print("var_momentan_L1 -- ");
-			Serial.print(var_momentan_L1);
-			Serial.print(" -- ");
-			Serial.println(var_momentan_L1.length());
-		}
-		if (validateValue(var_momentan_L2)) {
-			mqttHandler.publish(
-				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L2).c_str(),
-				var_momentan_L2.c_str()
-			);
-		} else {
-			Serial.print("var_momentan_L2 -- ");
-			Serial.print(var_momentan_L2);
-			Serial.print(" -- ");
-			Serial.println(var_momentan_L2.length());
-		}
-		if (validateValue(var_momentan_L3)) {
-			mqttHandler.publish(
-				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L3).c_str(),
-				var_momentan_L3.c_str()
-			);
-		} else {
-			Serial.print("var_momentan_L3 -- ");
-			Serial.print(var_momentan_L3);
-			Serial.print(" -- ");
-			Serial.println(var_momentan_L3.length());
-		}
-		if (validateValue(var_momentan_L1_3)) {
-			mqttHandler.publish(
-				((String)mqttPrefix + "/" + (String)EXTERN_MOMENTAN_L1_3).c_str(),
-				var_momentan_L1_3.c_str()
-			);
-		} else {
-			Serial.print("var_momentan_L1_3 -- ");
-			Serial.print(var_momentan_L1_3);
-			Serial.print(" -- ");
-			Serial.println(var_momentan_L1_3.length());
-		}
-    	Serial.print(name);
-		Serial.println(":PowerSerial::transmit Every 5 seconds (end)");
-		count = 0;
+		Serial.println(F(": parse incomplete"));
+		return;  // member vars unchanged
 	}
 
+	Serial.print(name);
+	Serial.print(F(": OK "));
+	Serial.print(telegramIdx);
+	Serial.println(F("B"));
+
+	if (debugMode) {
+		Serial.println(telegram);
+	}
+
+	// Parse into LOCAL fixed-size buffers — no heap allocation
+	char new_bezug[VALUE_BUF_SIZE] = "";
+	char new_liefer[VALUE_BUF_SIZE] = "";
+	char new_L1[POWER_BUF_SIZE] = "";
+	char new_L2[POWER_BUF_SIZE] = "";
+	char new_L3[POWER_BUF_SIZE] = "";
+	char new_L1_3[POWER_BUF_SIZE] = "";
+	int new_count = 0;
+
+	// Process telegram line by line
+	char *lineStart = telegram;
+	for (int i = 0; i <= telegramIdx; i++) {
+		if (telegram[i] == '\n' || telegram[i] == '\0' || i == telegramIdx) {
+			int lineLen = &telegram[i] - lineStart;
+			// Trim \r\n from end
+			while (lineLen > 0 && (lineStart[lineLen - 1] == '\r' || lineStart[lineLen - 1] == '\n')) {
+				lineLen--;
+			}
+			if (lineLen > 0) {
+				processLine(lineStart, lineLen, new_bezug, new_liefer,
+					new_L1, new_L2, new_L3, new_L1_3, new_count);
+			}
+			lineStart = &telegram[i + 1];
+		}
+	}
+
+	// Discard first 2 telegrams — serial port starts mid-telegram and bit errors
+	// are common on the first frames after begin(). Two discards ensures the UART
+	// has fully synchronized before we trust any OBIS code matching.
+	if (discardCount < 2) {
+		discardCount++;
+		Serial.print(name);
+		Serial.print(F(": telegram "));
+		Serial.print(discardCount);
+		Serial.println(F("/2 discarded (startup)"));
+		count = 0;  // trigger another parse immediately
+		return;
+	}
+
+	// ATOMIC promotion — only after full successful parse
+	strncpy(var_bezug, new_bezug, VALUE_BUF_SIZE - 1);
+	var_bezug[VALUE_BUF_SIZE - 1] = '\0';
+	strncpy(var_liefer, new_liefer, VALUE_BUF_SIZE - 1);
+	var_liefer[VALUE_BUF_SIZE - 1] = '\0';
+	strncpy(var_momentan_L1, new_L1, POWER_BUF_SIZE - 1);
+	var_momentan_L1[POWER_BUF_SIZE - 1] = '\0';
+	strncpy(var_momentan_L2, new_L2, POWER_BUF_SIZE - 1);
+	var_momentan_L2[POWER_BUF_SIZE - 1] = '\0';
+	strncpy(var_momentan_L3, new_L3, POWER_BUF_SIZE - 1);
+	var_momentan_L3[POWER_BUF_SIZE - 1] = '\0';
+	strncpy(var_momentan_L1_3, new_L1_3, POWER_BUF_SIZE - 1);
+	var_momentan_L1_3[POWER_BUF_SIZE - 1] = '\0';
+	count = -1;
 }
 
-int PowerSerial::validateValue(String value) {
-	if (value.length() > 0) {
-		if (value.length() == 9) {
-			return true;
-		} else if (value.length() == 10 && value.startsWith("-")) {
-			return true;
-		} else {
-			return false;
+void PowerSerial::processLine(const char *line, int len,
+	char *new_bezug, char *new_liefer,
+	char *new_L1, char *new_L2, char *new_L3, char *new_L1_3,
+	int &new_count) {
+
+	// Find '(' to split key and value
+	int parenPos = -1;
+	for (int i = 0; i < len; i++) {
+		if (line[i] == '(') { parenPos = i; break; }
+	}
+	if (parenPos <= 0) return;  // no key(value) structure
+
+	// Extract key (everything before '(')
+	char key[32];
+	int keyLen = (parenPos < 31) ? parenPos : 31;
+	strncpy(key, line, keyLen);
+	key[keyLen] = '\0';
+
+	// Extract value (between '(' and '*' or ')')
+	int valueStart = parenPos + 1;
+	int valueEnd = -1;
+
+	// Find '*' after '(' (unit separator, e.g., "00040461.79*kWh")
+	for (int i = valueStart; i < len; i++) {
+		if (line[i] == '*') { valueEnd = i; break; }
+	}
+	// If no '*', find last ')'
+	if (valueEnd < 0) {
+		for (int i = len - 1; i >= valueStart; i--) {
+			if (line[i] == ')') { valueEnd = i; break; }
 		}
+	}
+	if (valueEnd < 0) return;  // malformed line
+
+	int valueLen = valueEnd - valueStart;
+	char value[VALUE_BUF_SIZE];
+	if (valueLen >= VALUE_BUF_SIZE) valueLen = VALUE_BUF_SIZE - 1;
+	strncpy(value, line + valueStart, valueLen);
+	value[valueLen] = '\0';
+
+	if (debugMode) {
+		Serial.print(key);
+		Serial.print(F(" "));
+		Serial.println(value);
+	}
+
+	// Match OBIS key to field — using strncmp via startsWith()
+	if (startsWith(key, PATTERN_BEZUG_KEY)) {
+		strncpy(new_bezug, value, VALUE_BUF_SIZE - 1);
+		new_bezug[VALUE_BUF_SIZE - 1] = '\0';
+	} else if (startsWith(key, PATTERN_LIEFER_KEY)) {
+		strncpy(new_liefer, value, VALUE_BUF_SIZE - 1);
+		new_liefer[VALUE_BUF_SIZE - 1] = '\0';
+	} else if (startsWith(key, PATTERN_MOMENTAN_255_L1) || startsWith(key, PATTERN_MOMENTAN_0_L1)) {
+		strncpy(new_L1, value, POWER_BUF_SIZE - 1);
+		new_L1[POWER_BUF_SIZE - 1] = '\0';
+	} else if (startsWith(key, PATTERN_MOMENTAN_255_L2) || startsWith(key, PATTERN_MOMENTAN_0_L2)) {
+		strncpy(new_L2, value, POWER_BUF_SIZE - 1);
+		new_L2[POWER_BUF_SIZE - 1] = '\0';
+	} else if (startsWith(key, PATTERN_MOMENTAN_255_L3) || startsWith(key, PATTERN_MOMENTAN_0_L3)) {
+		strncpy(new_L3, value, POWER_BUF_SIZE - 1);
+		new_L3[POWER_BUF_SIZE - 1] = '\0';
+	} else if (startsWith(key, PATTERN_MOMENTAN_255_L1_3) || startsWith(key, PATTERN_MOMENTAN_0_L1_3)) {
+		strncpy(new_L1_3, value, POWER_BUF_SIZE - 1);
+		new_L1_3[POWER_BUF_SIZE - 1] = '\0';
+	}
+	new_count++;
+}
+
+void PowerSerial::transmitDataToMqtt(MqttHandler &mqttHandler) {
+	unsigned long currentWaitTime = millis() - lastupdate;
+	if (currentWaitTime < 5000) {
+		return;
+	}
+
+	lastupdate = millis();
+
+	if (debugMode) {
+		Serial.print(name);
+		Serial.println(F(": transmit to MQTT"));
+	}
+
+	char topicBuf[48];
+
+	if (validateEnergyValue(var_bezug, lastGoodBezug, rejectCountBezug)) {
+		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_BEZUG_KEY);
+		mqttHandler.publish(topicBuf, var_bezug);
+	} else if (debugMode) {
+		Serial.print(F("var_bezug rejected: "));
+		Serial.println(var_bezug);
+	}
+
+	if (validateEnergyValue(var_liefer, lastGoodLiefer, rejectCountLiefer)) {
+		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_LIEFER_KEY);
+		mqttHandler.publish(topicBuf, var_liefer);
+	} else if (debugMode) {
+		Serial.print(F("var_liefer rejected: "));
+		Serial.println(var_liefer);
+	}
+
+	if (validatePowerValue(var_momentan_L1)) {
+		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_MOMENTAN_L1);
+		mqttHandler.publish(topicBuf, var_momentan_L1);
+	} else if (debugMode) {
+		Serial.print(F("var_L1 invalid len="));
+		Serial.println(strlen(var_momentan_L1));
+	}
+
+	if (validatePowerValue(var_momentan_L2)) {
+		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_MOMENTAN_L2);
+		mqttHandler.publish(topicBuf, var_momentan_L2);
+	} else if (debugMode) {
+		Serial.print(F("var_L2 invalid len="));
+		Serial.println(strlen(var_momentan_L2));
+	}
+
+	if (validatePowerValue(var_momentan_L3)) {
+		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_MOMENTAN_L3);
+		mqttHandler.publish(topicBuf, var_momentan_L3);
+	} else if (debugMode) {
+		Serial.print(F("var_L3 invalid len="));
+		Serial.println(strlen(var_momentan_L3));
+	}
+
+	if (validatePowerValue(var_momentan_L1_3)) {
+		snprintf(topicBuf, sizeof(topicBuf), "%s/%s", mqttPrefix, EXTERN_MOMENTAN_L1_3);
+		mqttHandler.publish(topicBuf, var_momentan_L1_3);
+	} else if (debugMode) {
+		Serial.print(F("var_L1_3 invalid len="));
+		Serial.println(strlen(var_momentan_L1_3));
+	}
+
+	if (debugMode) {
+		Serial.print(name);
+		Serial.println(F(": transmit done"));
+	}
+	count = 0;
+}
+
+int PowerSerial::validatePowerValue(const char *value) {
+	int len = strlen(value);
+	if (len == 9) {
 		return true;
-	} else {
+	} else if (len == 10 && value[0] == '-') {
+		return true;
+	}
+	return false;
+}
+
+/**
+ * Validate energy counter value (kWh registers like bezug/liefer).
+ * Checks:
+ * - Length must be exactly 16 chars (format: "00040461.7966259")
+ * - Value must be > 0
+ * - Monotonically increasing (meter can only go up)
+ * - Delta must be < 5 kWh between consecutive reads (catches serial bit-flip
+ *   cross-contamination where liefer ~96k gets assigned to bezug ~40k)
+ *
+ * Self-healing: after REJECT_RECOVERY_THRESHOLD (10) consecutive rejections,
+ * lastGood resets to 0 - next valid reading becomes the new baseline.
+ * This prevents permanent lockout after a contamination event sets lastGood
+ * to an unreachable value.
+ *
+ * On first read (lastGood == 0): accepts any value as baseline.
+ * Returns true if valid and updates lastGood.
+ *
+ * v1.2.4: delta check restored at 5 kWh + self-healing recovery after 10 rejects.
+ */
+bool PowerSerial::validateEnergyValue(const char *value, float &lastGood, uint8_t &rejectCount) {
+	// Length check
+	if (strlen(value) != 16) return false;
+
+	// Parse to float
+	float current = atof(value);
+	if (current <= 0) return false;  // invalid parse or zero
+
+	// First reading - accept as baseline
+	if (lastGood == 0) {
+		lastGood = current;
+		rejectCount = 0;
+		return true;
+	}
+
+	// Monotonicity: must not go backward
+	if (current < lastGood) {
+		rejectCount++;
+		if (debugMode) {
+			Serial.print(F("  REJECT: backward "));
+			Serial.print(current, 2);
+			Serial.print(F(" < "));
+			Serial.println(lastGood, 2);
+		}
+		if (rejectCount >= REJECT_RECOVERY_THRESHOLD) {
+			Serial.print(name);
+			Serial.println(F(": SELF-HEAL reset baseline"));
+			lastGood = 0;
+			rejectCount = 0;
+		}
 		return false;
 	}
+
+	// Plausibility: delta must be < 5 kWh (catches bit-flip cross-contamination)
+	// 5 kWh in 5s = 3600 kW - physically impossible for any household.
+	// Even with a 10-minute gap at 20 kW max = 3.3 kWh - well within threshold.
+	float delta = current - lastGood;
+	if (delta > 5.0) {
+		rejectCount++;
+		if (debugMode) {
+			Serial.print(F("  REJECT: jump "));
+			Serial.print(delta, 1);
+			Serial.println(F(" kWh"));
+		}
+		if (rejectCount >= REJECT_RECOVERY_THRESHOLD) {
+			Serial.print(name);
+			Serial.println(F(": SELF-HEAL reset baseline"));
+			lastGood = 0;
+			rejectCount = 0;
+		}
+		return false;
+	}
+
+	// Valid - update last known good, reset reject counter
+	lastGood = current;
+	rejectCount = 0;
+	return true;
 }
 
-int PowerSerial::getCount(){
+int PowerSerial::getCount() {
 	return count;
 }
-
-

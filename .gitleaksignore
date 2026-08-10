@@ -1,0 +1,3 @@
+# MQTT topic suffixes; false positives from the generic-api-key rule.
+src/powerserial.cpp:generic-api-key:28
+src/powerserial.cpp:generic-api-key:29

@@ -5,4 +5,5 @@
 .piolibdeps/
 .vscode/
 private_config.ini
+compile_commands.json
 /log
