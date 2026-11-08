@@ -164,7 +164,7 @@ boolean reconnect() {
 		mqttClient.publish(topicVersion, pVersion);
 		mqttClient.publish(topicDebug, debugMode ? "on" : "off");
 		char uptimeBuf[12];
-		ltoa(millis(), uptimeBuf, 10);
+		ultoa(millis(), uptimeBuf, 10);  // unsigned: ltoa() turned millis() negative after 2^31 ms (24.85 d)
 		mqttClient.publish(topicUptime, uptimeBuf);
 		mqttClient.subscribe(topicCommand);
 		Serial.print(F("MQTT subscribed to "));
@@ -219,7 +219,7 @@ void loop() {
 		}
 
 		char uptimeBuf[12];
-		ltoa(millis(), uptimeBuf, 10);
+		ultoa(millis(), uptimeBuf, 10);  // unsigned: ltoa() turned millis() negative after 2^31 ms (24.85 d)
 		mqttClient.publish(topicUptime, uptimeBuf);
 		char ramBuf[8];
 		itoa(freeRam(), ramBuf, 10);
